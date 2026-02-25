@@ -6,8 +6,11 @@ export interface Task {
   health: 'green' | 'amber' | 'red';
   lastRun: string;
   nextRun?: string;
+  active?: boolean;
+  urgent?: boolean;
 }
 
+// Hardcoded fallback for SSR / offline
 export const tasks: Task[] = [
   { id: 1, name: "Morning Briefing", project: "BASeD Core", frequency: "Daily", health: "green", lastRun: "2026-02-25 08:00", nextRun: "Tomorrow 08:00" },
   { id: 2, name: "Email Triage", project: "Communications", frequency: "Daily", health: "green", lastRun: "2026-02-25 08:15", nextRun: "Tomorrow 08:15" },
