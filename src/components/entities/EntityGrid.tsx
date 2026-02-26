@@ -15,6 +15,7 @@ interface EntityGridProps {
   onViewChange: (view: 'grid' | 'list') => void;
   onSelect: (entity: Entity) => void;
   onEdit: (entity: Entity) => void;
+  showTypeFilters?: boolean;
 }
 
 const TYPES: EntityType[] = [
@@ -41,40 +42,43 @@ export default function EntityGrid({
   onViewChange,
   onSelect,
   onEdit,
+  showTypeFilters = true,
 }: EntityGridProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div className="panel" style={{ padding: 16 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 10 }}>
-          <span style={{ fontFamily: 'var(--font-heading)', fontSize: 14, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>Filter:</span>
-          {TYPES.map(type => {
-            const active = selectedTypes.includes(type);
-            const color = ENTITY_TYPE_COLORS[type];
-            return (
-              <button
-                key={type}
-                onClick={() => onToggleType(type)}
-                style={{
-                  background: active ? 'rgba(255,255,255,0.08)' : 'transparent',
-                  border: `1px solid ${active ? color : 'var(--border-subtle)'}`,
-                  color: active ? color : 'var(--text-muted)',
-                  padding: '4px 8px',
-                  fontSize: 12,
-                  letterSpacing: '0.06em',
-                  cursor: 'pointer',
-                }}
-              >
-                {ENTITY_TYPE_LABELS[type]}
-              </button>
-            );
-          })}
-          <button
-            onClick={() => TYPES.forEach(t => selectedTypes.includes(t) && onToggleType(t))}
-            style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', padding: '4px 8px', fontSize: 12, cursor: 'pointer' }}
-          >
-            Clear
-          </button>
-        </div>
+        {showTypeFilters && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontFamily: 'var(--font-heading)', fontSize: 14, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>Filter:</span>
+            {TYPES.map(type => {
+              const active = selectedTypes.includes(type);
+              const color = ENTITY_TYPE_COLORS[type];
+              return (
+                <button
+                  key={type}
+                  onClick={() => onToggleType(type)}
+                  style={{
+                    background: active ? 'rgba(255,255,255,0.08)' : 'transparent',
+                    border: `1px solid ${active ? color : 'var(--border-subtle)'}`,
+                    color: active ? color : 'var(--text-muted)',
+                    padding: '4px 8px',
+                    fontSize: 12,
+                    letterSpacing: '0.06em',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {ENTITY_TYPE_LABELS[type]}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => TYPES.forEach(t => selectedTypes.includes(t) && onToggleType(t))}
+              style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', padding: '4px 8px', fontSize: 12, cursor: 'pointer' }}
+            >
+              Clear
+            </button>
+          </div>
+        )}
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
           <input
