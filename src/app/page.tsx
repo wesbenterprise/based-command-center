@@ -185,7 +185,7 @@ function StatCard({ label, value, color }: { label: string; value: string; color
   return (
     <div className="panel" style={{ textAlign: 'center', flex: 1, minWidth: 120, animation: 'statGlow 4s ease infinite' }}>
       <div style={{ fontFamily: 'var(--font-heading)', fontSize: 28, color, lineHeight: 1 }}>{value}</div>
-      <div style={{ color: 'var(--text-secondary)', fontSize: 14, marginTop: 4, fontFamily: 'var(--font-heading)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ color: 'var(--text-secondary)', fontSize: 15, marginTop: 6, fontFamily: 'var(--font-heading)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
     </div>
   );
 }
@@ -228,7 +228,7 @@ function PriorityInbox({ emails, onDismiss, onFeedback }: {
 
   return (
     <div className="panel" style={{ borderColor: 'rgba(255,0,255,0.2)' }}>
-      <h3 style={{ fontSize: 12, color: 'var(--accent-magenta)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+      <h3 style={{ fontSize: 16, color: 'var(--accent-magenta)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
         📧 Priority Inbox ({emails.length})
       </h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -251,10 +251,10 @@ function PriorityInbox({ emails, onDismiss, onFeedback }: {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
               <div style={{ flex: 1 }}>
                 <span style={{ marginRight: 8 }}>{priorityBadge(email.priority)}</span>
-                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 14 }}>
+                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 16 }}>
                   {email.subject.length > 60 ? email.subject.slice(0, 60) + '…' : email.subject}
                 </span>
-                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{email.sender}</div>
+                <div style={{ fontSize: 15, color: 'var(--text-muted)', marginTop: 2 }}>{email.sender}</div>
               </div>
               {/* Action buttons */}
               <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 12 }} onClick={e => e.stopPropagation()}>
@@ -262,7 +262,7 @@ function PriorityInbox({ emails, onDismiss, onFeedback }: {
                   onClick={() => onDismiss(email.id)}
                   style={{
                     background: 'transparent', border: '1px solid var(--accent-green)', color: 'var(--accent-green)',
-                    padding: '2px 8px', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-heading)',
+                    padding: '6px 12px', minHeight: 32, minWidth: 32, cursor: 'pointer', fontSize: 14, fontFamily: 'var(--font-heading)',
                   }}
                   title="Dismiss"
                 >✓</button>
@@ -271,7 +271,7 @@ function PriorityInbox({ emails, onDismiss, onFeedback }: {
                     onClick={() => setOpenDropdown(openDropdown === email.id ? null : email.id)}
                     style={{
                       background: 'transparent', border: '1px solid var(--accent-amber)', color: 'var(--accent-amber)',
-                      padding: '2px 8px', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-heading)',
+                      padding: '6px 12px', minHeight: 32, minWidth: 32, cursor: 'pointer', fontSize: 14, fontFamily: 'var(--font-heading)',
                     }}
                     title="Wrong call"
                   >👎</button>
@@ -286,9 +286,9 @@ function PriorityInbox({ emails, onDismiss, onFeedback }: {
                           key={opt.value}
                           onClick={() => { onFeedback(email, opt.value); setOpenDropdown(null); }}
                           style={{
-                            display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px',
+                            display: 'block', width: '100%', textAlign: 'left', padding: '10px 12px',
                             background: 'transparent', border: 'none', color: 'var(--text-primary)',
-                            cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-body)',
+                            cursor: 'pointer', fontSize: 15, fontFamily: 'var(--font-body)',
                           }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,0,255,0.1)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -302,14 +302,14 @@ function PriorityInbox({ emails, onDismiss, onFeedback }: {
             {/* Agent tags */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 6 }}>
               {email.agents.map((a, i) => (
-                <div key={i} style={{ fontSize: 13, color: 'var(--accent-cyan)' }}>
+                <div key={i} style={{ fontSize: 16, color: 'var(--accent-cyan)' }}>
                   <span style={{ color: 'var(--accent-magenta)', fontFamily: 'var(--font-heading)' }}>{a.agent}:</span>{' '}
                   <span style={{ color: 'var(--text-secondary)' }}>{a.reason}</span>
                 </div>
               ))}
             </div>
             {/* Age */}
-            <div style={{ fontSize: 12, color: ageColor(email.received_at) }}>
+            <div style={{ fontSize: 14, color: ageColor(email.received_at) }}>
               Received: {new Date(email.received_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {timeAgo(email.received_at)}
             </div>
           </div>
@@ -331,7 +331,7 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback }: {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Morning Brief */}
       <div className="panel" style={{ borderColor: 'rgba(0,255,255,0.3)' }}>
-        <h2 style={{ fontSize: 14, color: 'var(--accent-cyan)', margin: '0 0 12px 0', textTransform: 'uppercase' }}>
+        <h2 style={{ fontSize: 16, color: 'var(--accent-cyan)', margin: '0 0 12px 0', textTransform: 'uppercase' }}>
           Morning Brief
         </h2>
         <p style={{ margin: 0, fontSize: 20, lineHeight: 1.5 }}>
@@ -353,7 +353,7 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback }: {
 
       {/* Agent Roster */}
       <div>
-        <h3 style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+        <h3 style={{ fontSize: 15, color: 'var(--text-muted)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
           Agent Roster
         </h3>
         <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
@@ -362,11 +362,11 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback }: {
               <div style={{ position: 'relative', width: 64, height: 64, margin: '0 auto 8px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--accent-magenta)' }}>
                 <Image src={a.avatar} alt={a.name} fill style={{ objectFit: 'cover' }} />
               </div>
-              <div style={{ fontFamily: 'var(--font-heading)', fontSize: 13, color: 'var(--accent-magenta)' }}>
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, color: 'var(--accent-magenta)' }}>
                 {a.emoji} {a.name}
               </div>
-              <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{a.role}</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 6, fontSize: 13, color: 'var(--accent-green)' }}>
+              <div style={{ fontSize: 16, color: 'var(--text-secondary)' }}>{a.role}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 6, fontSize: 14, color: 'var(--accent-green)' }}>
                 <span className="pulse-dot" /> Online
               </div>
             </div>
@@ -376,7 +376,7 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback }: {
 
       {/* Needs Attention */}
       <div className="panel">
-        <h3 style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+        <h3 style={{ fontSize: 15, color: 'var(--text-muted)', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
           Needs Attention
         </h3>
         <p style={{ margin: 0, color: 'var(--accent-green)', fontSize: 18 }}>✓ Nothing needs your attention</p>
@@ -387,20 +387,20 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback }: {
 
       {/* Next Up */}
       <div className="panel">
-        <h3 style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+        <h3 style={{ fontSize: 15, color: 'var(--text-muted)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
           Next Up
         </h3>
         {tasks.filter(t => t.frequency === 'Daily').slice(0, 5).map(t => (
           <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
             <span>{t.name}</span>
-            <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{t.nextRun || t.lastRun}</span>
+            <span style={{ fontSize: 15, color: 'var(--text-muted)' }}>{t.nextRun || t.lastRun}</span>
           </div>
         ))}
       </div>
 
       {/* Recent Activity */}
       <div className="panel">
-        <h3 style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+        <h3 style={{ fontSize: 15, color: 'var(--text-muted)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
           Recent Activity
         </h3>
         {[
@@ -433,14 +433,14 @@ function OpsTab({ tasks }: { tasks: Task[] }) {
         const col = tasks.filter(t => t.frequency === freq);
         return (
           <div key={freq} style={{ minWidth: 260, flex: '0 0 260px' }}>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 13, color: 'var(--accent-magenta)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, color: 'var(--accent-magenta)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               {freq} <span style={{ color: 'var(--text-muted)' }}>({col.length})</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {col.map(t => (
                 <div key={t.id} className="panel" style={{ padding: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: 12, lineHeight: 1.3 }}>{t.name}</div>
+                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, lineHeight: 1.3 }}>{t.name}</div>
                     <span style={{
                       width: 8, height: 8, borderRadius: '50%', flexShrink: 0, marginTop: 4,
                       background: t.health === 'green' ? 'var(--accent-green)' : t.health === 'amber' ? 'var(--accent-amber)' : 'var(--accent-red)',
@@ -448,10 +448,10 @@ function OpsTab({ tasks }: { tasks: Task[] }) {
                     }} />
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 13, color: 'var(--accent-cyan)', fontFamily: 'var(--font-body)' }}>{t.project}</span>
+                    <span style={{ fontSize: 16, color: 'var(--accent-cyan)', fontFamily: 'var(--font-body)' }}>{t.project}</span>
                     <RunButton />
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Last: {t.lastRun}</div>
+                  <div style={{ fontSize: 15, color: 'var(--text-muted)', marginTop: 4 }}>Last: {t.lastRun}</div>
                 </div>
               ))}
             </div>
@@ -484,23 +484,23 @@ function AppsTab() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {categories.map(cat => (
         <div key={cat.name}>
-          <h3 style={{ fontSize: 13, color: 'var(--accent-magenta)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          <h3 style={{ fontSize: 16, color: 'var(--accent-magenta)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
             {cat.emoji} {cat.name}
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
             {cat.apps.map(app => (
               <a key={app.name} href={app.url || '#'} target="_blank" rel="noopener" className="panel" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: 13 }}>{app.icon} {app.name}</span>
+                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: 16 }}>{app.icon} {app.name}</span>
                   <span style={{
-                    fontSize: 11, fontFamily: 'var(--font-heading)', letterSpacing: '0.05em', padding: '2px 8px',
+                    fontSize: 14, fontFamily: 'var(--font-heading)', letterSpacing: '0.04em', padding: '4px 10px',
                     border: `1px solid ${app.status === 'ONLINE' ? 'var(--accent-green)' : app.status === 'IN PROGRESS' ? 'var(--accent-amber)' : 'var(--text-muted)'}`,
                     color: app.status === 'ONLINE' ? 'var(--accent-green)' : app.status === 'IN PROGRESS' ? 'var(--accent-amber)' : 'var(--text-muted)',
                   }}>
                     {app.status}
                   </span>
                 </div>
-                <div style={{ fontSize: 15, color: 'var(--text-secondary)' }}>{app.description}</div>
+                <div style={{ fontSize: 16, color: 'var(--text-secondary)' }}>{app.description}</div>
               </a>
             ))}
           </div>
@@ -560,18 +560,18 @@ export default function Home() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Image src="/assets/logo.png" alt="BASeD" width={40} height={40} style={{ borderRadius: 4 }} />
           <div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, letterSpacing: '0.15em' }}>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 18, letterSpacing: '0.1em' }}>
               <span className="neon-magenta">BASeD</span>{' '}
               <span style={{ color: 'var(--text-secondary)' }}>COMMAND CENTER</span>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.1em' }}>
+            <div style={{ fontSize: 14, color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.1em' }}>
               v3.0 — ALL SYSTEMS NOMINAL <span className="pulse-dot" style={{ marginLeft: 6 }} />
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--accent-amber)' }}>🔥 1</span>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 17, color: 'var(--accent-amber)' }}>🔥 1</span>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 14, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
             Lv.1 Operator · 0 XP
             <div style={{ width: 80, height: 4, background: 'rgba(255,255,255,0.1)', marginTop: 2, borderRadius: 2 }}>
               <div style={{
@@ -605,7 +605,7 @@ export default function Home() {
         position: 'sticky', bottom: 0, zIndex: 100,
         borderTop: '1px solid rgba(255,0,255,0.2)',
         background: 'rgba(10,10,10,0.95)', backdropFilter: 'blur(12px)',
-        padding: '8px 24px', display: 'flex', alignItems: 'center', gap: 8
+        padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 8
       }}>
         <span style={{ color: 'var(--accent-magenta)', fontFamily: 'var(--font-body)', fontSize: 18 }}>&gt; _</span>
         <input
