@@ -2,15 +2,197 @@
 -- Run this in the BASeD Supabase SQL Editor
 
 -- Entities (Wesley's world map)
+-- Drop and recreate for updated schema
+DROP TABLE IF EXISTS entity_relationships;
+DROP TABLE IF EXISTS entities;
+
 CREATE TABLE entities (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
-    type TEXT NOT NULL,
+    full_name TEXT,
+    type TEXT NOT NULL CHECK (type IN (
+        'person', 'family_office', 'operating_company',
+        'investment_vehicle', 'venture_fund', 'nonprofit',
+        'real_estate', 'public_company', 'philanthropic'
+    )),
     description TEXT,
-    key_contacts TEXT,
-    financial_details TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
+    key_people JSONB DEFAULT '[]',
+    agent_instructions TEXT NOT NULL,
+    financial_notes TEXT,
+    tracking_focus TEXT[],
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'watch')),
+    icon TEXT,
+    sort_order INTEGER DEFAULT 0,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Relationships (many-to-many, directional)
+CREATE TABLE entity_relationships (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    source_entity_id UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+    target_entity_id UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+    relationship_type TEXT NOT NULL CHECK (relationship_type IN (
+        'parent_of',
+        'subsidiary_of',
+        'holds_position_in',
+        'operates',
+        'board_member_of',
+        'affiliated_with',
+        'stakeholder_in',
+        'philanthropic_to'
+    )),
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT no_self_reference CHECK (source_entity_id != target_entity_id),
+    CONSTRAINT unique_relationship UNIQUE (source_entity_id, target_entity_id, relationship_type)
+);
+
+CREATE INDEX idx_entities_type ON entities(type);
+CREATE INDEX idx_entities_status ON entities(status);
+CREATE INDEX idx_entities_slug ON entities(slug);
+CREATE INDEX idx_rel_source ON entity_relationships(source_entity_id);
+CREATE INDEX idx_rel_target ON entity_relationships(target_entity_id);
+
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER entities_updated_at
+    BEFORE UPDATE ON entities
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Seed: People
+INSERT INTO entities (slug, name, full_name, type, description, key_people, agent_instructions, tracking_focus, sort_order) VALUES
+('wesley-barnett', 'Wesley Barnett', 'Wesley R. Barnett', 'person',
+ 'Founder and Executive Chairman of Barnett Family Partners. Founding partner at TampaBay.Ventures. President of Lakeland Hospitality Group.',
+ '[{"name": "David Ward", "role": "Executive Director", "notes": "Runs day-to-day operations"},
+   {"name": "Chad Corbitt", "role": "Chief Analyst", "notes": "Leads investment analysis and venture ops"}]'::jsonb,
+ 'This is the principal. All agent activity serves Wesley.',
+ ARRAY['All portfolio entities', 'Cross-entity patterns', 'Calendar and commitments'], 0),
+
+('ashley-barnett', 'Ashley Bell Barnett', 'Ashley Bell Barnett', 'person',
+ 'Board of Governors member.',
+ '[]'::jsonb,
+ 'Track Board of Governors schedule. Do not manage Ashley''s affairs directly — awareness only.',
+ ARRAY['Board of Governors schedule'], 1);
+
+-- Seed: Family Office
+INSERT INTO entities (slug, name, full_name, type, description, agent_instructions, financial_notes, tracking_focus, sort_order) VALUES
+('bfp', 'BFP', 'Barnett Family Partners, LLC', 'family_office',
+ 'The family office. Parent entity of the Barnett portfolio. When someone says "the company" without context, they mean BFP.',
+ 'When referencing "the company" without context, assume BFP. Member loan of $501,221.96 at 4.30% AFR.',
+ 'Member loan: $501,221.96 at 4.30% AFR (Applicable Federal Rate)',
+ ARRAY['Entity-wide performance', 'Compliance', 'Tax planning', 'Member distributions'], 0);
+
+-- Seed: Investment & Venture
+INSERT INTO entities (slug, name, full_name, type, description, agent_instructions, tracking_focus, sort_order) VALUES
+('lvi', 'LVI', 'Lakeland Ventures & Investments, LLC', 'investment_vehicle',
+ 'Investment holding vehicle. Primary asset is position in TampaBay.Ventures.',
+ 'CRITICAL: LVI''s primary investment is its TBV position. Do NOT scan real estate listings on its behalf. Do NOT conflate LVI with direct real estate.',
+ ARRAY['TBV position value', 'Distribution schedule', 'K-1 documents'], 0),
+
+('tbv', 'TampaBay.Ventures', 'TampaBay.Ventures', 'venture_fund',
+ 'Early-stage venture fund focused on Florida ecosystem. Active investment vehicle.',
+ 'Track portfolio company news, fund performance, Florida venture ecosystem. This is the active investment vehicle — LVI is the holding entity above it.',
+ ARRAY['Portfolio company news', 'Fund performance metrics', 'FL venture ecosystem', 'Deal flow'], 0);
+
+-- Seed: Operating Company & Real Estate
+INSERT INTO entities (slug, name, full_name, type, description, agent_instructions, tracking_focus, sort_order) VALUES
+('lhg', 'LHG', 'Lakeland Hospitality Group', 'operating_company',
+ 'Hotel operating company. Manages SpringHill Suites Lakeland.',
+ 'Track STR benchmarks, RevPAR vs comp set, Marriott brand standards/PIP requirements.',
+ ARRAY['STR benchmarks', 'RevPAR vs comp set', 'Marriott brand standards', 'PIP requirements'], 0),
+
+('springhill-suites', 'SpringHill Suites', 'SpringHill Suites by Marriott Lakeland', 'real_estate',
+ 'Hotel property in Lakeland, FL. Operated by LHG under Marriott flag.',
+ 'Track property-level performance (RevPAR, occupancy, ADR), capex needs, PIP compliance.',
+ ARRAY['RevPAR', 'Occupancy rate', 'ADR', 'Capex needs', 'PIP compliance'], 0);
+
+-- Seed: Public Company
+INSERT INTO entities (slug, name, full_name, type, description, agent_instructions, tracking_focus, sort_order) VALUES
+('publix', 'Publix', 'Publix Super Markets, Inc.', 'public_company',
+ 'Employee-owned supermarket chain. Wesley is a stakeholder, not an operator.',
+ 'Track PUSH.OTC price, quarterly earnings. Wesley does not manage Publix — monitor as stakeholder, not operator.',
+ ARRAY['PUSH.OTC price', 'Quarterly earnings', 'Dividend distributions'], 0);
+
+-- Seed: Philanthropic & Nonprofit
+INSERT INTO entities (slug, name, full_name, type, description, agent_instructions, tracking_focus, sort_order) VALUES
+('bsp', 'BSP', 'Bonnet Springs Park', 'philanthropic',
+ 'Public park in Lakeland, FL. Philanthropic legacy project.',
+ 'Monitor visitor data, community impact metrics. Track as philanthropic legacy — not a business investment.',
+ ARRAY['Visitor data', 'Community impact metrics', 'Event calendar'], 0),
+
+('fl-poly', 'FL Poly', 'Florida Polytechnic University', 'nonprofit',
+ 'University in Lakeland. Home of BARC (Barnett Applied Research Center).',
+ 'Track BARC research output, grants awarded. Part of family philanthropy impact tracking.',
+ ARRAY['BARC research output', 'Grants awarded', 'Board meeting dates'], 0),
+
+('lrh', 'LRH', 'Lakeland Regional Health', 'philanthropic',
+ 'Regional health system. Family philanthropic engagement.',
+ 'Track construction progress, campaign milestones. Part of family philanthropy impact tracking.',
+ ARRAY['Construction progress', 'Campaign milestones', 'Capital campaign status'], 0),
+
+('cmfl', 'Children''s Movement of FL', 'The Children''s Movement of Florida', 'nonprofit',
+ 'Advocacy organization for early childhood education and care in Florida.',
+ 'Track FL early childhood policy, legislative activity. Connects to Carol''s legacy.',
+ ARRAY['FL early childhood policy', 'Legislative activity', 'Advocacy campaigns'], 0),
+
+('givewell', 'GiveWell', 'GiveWell Community Foundation', 'nonprofit',
+ 'Community foundation. Wesley serves on the board.',
+ 'Track board meeting dates, prep materials, relevant community foundation news.',
+ ARRAY['Board meeting dates', 'Prep materials', 'Community foundation news'], 0);
+
+-- Seed: Relationships
+INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, description)
+SELECT s.id, t.id, 'parent_of', 'BFP is the parent family office'
+FROM entities s, entities t WHERE s.slug = 'bfp' AND t.slug = 'lvi';
+
+INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, description)
+SELECT s.id, t.id, 'parent_of', 'BFP is the parent family office'
+FROM entities s, entities t WHERE s.slug = 'bfp' AND t.slug = 'lhg';
+
+INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, description)
+SELECT s.id, t.id, 'holds_position_in', 'LVI''s primary investment is its TBV position'
+FROM entities s, entities t WHERE s.slug = 'lvi' AND t.slug = 'tbv';
+
+INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, description)
+SELECT s.id, t.id, 'operates', 'LHG manages the SpringHill Suites property'
+FROM entities s, entities t WHERE s.slug = 'lhg' AND t.slug = 'springhill-suites';
+
+INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, description)
+SELECT s.id, t.id, 'parent_of', 'Wesley is the principal behind BFP'
+FROM entities s, entities t WHERE s.slug = 'wesley-barnett' AND t.slug = 'bfp';
+
+INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, description)
+SELECT s.id, t.id, 'board_member_of', 'Wesley serves on the FL Poly board'
+FROM entities s, entities t WHERE s.slug = 'wesley-barnett' AND t.slug = 'fl-poly';
+
+INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, description)
+SELECT s.id, t.id, 'board_member_of', 'Wesley serves on the GiveWell board'
+FROM entities s, entities t WHERE s.slug = 'wesley-barnett' AND t.slug = 'givewell';
+
+INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, description)
+SELECT s.id, t.id, 'stakeholder_in', 'Publix stakeholder (not operator)'
+FROM entities s, entities t WHERE s.slug = 'wesley-barnett' AND t.slug = 'publix';
+
+INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, description)
+SELECT s.id, t.id, 'philanthropic_to', 'Family philanthropic engagement'
+FROM entities s, entities t WHERE s.slug = 'bfp' AND t.slug = 'bsp';
+
+INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, description)
+SELECT s.id, t.id, 'philanthropic_to', 'Family philanthropic engagement'
+FROM entities s, entities t WHERE s.slug = 'bfp' AND t.slug = 'lrh';
+
+INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, description)
+SELECT s.id, t.id, 'philanthropic_to', 'Connected to Carol''s legacy'
+FROM entities s, entities t WHERE s.slug = 'bfp' AND t.slug = 'cmfl';
 
 -- Tasks (standing orders)
 CREATE TABLE tasks (

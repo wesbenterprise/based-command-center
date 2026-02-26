@@ -5,6 +5,7 @@ import { categories } from "../apps.config";
 import { tasks as fallbackTasks, Task } from "../data/tasks";
 import { supabase } from "../lib/supabase";
 import Image from "next/image";
+import EntityManagement from "../components/entities/EntityManagement";
 
 // ─── Types ─────────────────────────────────────────────────
 interface FlaggedEmail {
@@ -464,18 +465,7 @@ function OpsTab({ tasks }: { tasks: Task[] }) {
 
 // ─── Intel Tab ─────────────────────────────────────────────
 function IntelTab() {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
-      <div className="panel" style={{ textAlign: 'center', padding: 48, maxWidth: 500 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
-        <h2 style={{ fontSize: 20, color: 'var(--accent-cyan)', margin: '0 0 12px 0' }}>Intel — Coming Soon</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 16, margin: 0 }}>
-          Weekly scorecards, market intelligence, competitive analysis, and KPI dashboards.
-          Phase 2 of the Command Center rollout.
-        </p>
-      </div>
-    </div>
-  );
+  return <EntityManagement />;
 }
 
 // ─── Apps Tab ──────────────────────────────────────────────
