@@ -92,7 +92,14 @@ function useFlaggedEmails() {
       .select('*')
       .eq('status', 'active')
       .order('priority');
-    if (data) setEmails(data as FlaggedEmail[]);
+    if (data) {
+      const parsed = data.map((row: Record<string, unknown>) => ({
+        ...row,
+        agents: typeof row.agents === 'string' ? JSON.parse(row.agents) : (row.agents || []),
+        priority: row.priority === 'amber' ? 'yellow' : row.priority,
+      }));
+      setEmails(parsed as FlaggedEmail[]);
+    }
   }, []);
 
   useEffect(() => { fetchEmails(); }, [fetchEmails]);
