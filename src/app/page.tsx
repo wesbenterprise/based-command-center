@@ -3,8 +3,10 @@
 import { useState, useCallback, useEffect } from "react";
 import { categories } from "../apps.config";
 import { tasks as fallbackTasks, Task } from "../data/tasks";
+import { agents } from "../data/agents";
 import { supabase } from "../lib/supabase";
 import Image from "next/image";
+import Link from "next/link";
 import EntityManagement from "../components/entities/EntityManagement";
 
 // ─── Types ─────────────────────────────────────────────────
@@ -28,25 +30,6 @@ interface Stats {
   hasRedEmail: boolean;
 }
 
-// ─── Agents ────────────────────────────────────────────────
-const agents = [
-  // Active agents
-  { id: "ace", name: "Ace", emoji: "♠️", role: "Chief of Staff", avatar: "/assets/avatars/ace.png", status: "active" as const, model: "Claude Opus 4" },
-  { id: "astra", name: "Astra", emoji: "⚡", role: "Strategist", avatar: "/assets/avatars/astra.png", status: "active" as const, model: "Claude Opus 4" },
-  { id: "dezayas", name: "Dezayas", emoji: "🔧", role: "Builder", avatar: "/assets/avatars/dezayas.png", status: "active" as const, model: "GPT-5.2 Codex" },
-  { id: "rybo", name: "Rybo", emoji: "🎭", role: "The Pragmatist", avatar: "/assets/avatars/rybo.png", status: "active" as const, model: "Claude Opus 4" },
-  { id: "charles", name: "Charles", emoji: "📜", role: "Historian", avatar: "/assets/avatars/charles.png", status: "active" as const, model: "Claude Sonnet 4" },
-  { id: "romero", name: "Romero", emoji: "🎨", role: "Creative Director", avatar: "/assets/avatars/romero.png", status: "active" as const, model: "Claude Sonnet 4" },
-  { id: "cid", name: "Cid", emoji: "🎮", role: "Game Designer", avatar: "/assets/avatars/cid.png", status: "active" as const, model: "GPT-5.2 Codex" },
-  { id: "julius", name: "Julius", emoji: "🌉", role: "Philanthropic Advisor", avatar: "/assets/avatars/julius.png", status: "active" as const, model: "Claude Sonnet 4" },
-  // Activating
-  { id: "anderson", name: "Anderson", emoji: "📊", role: "Financial Modeler", avatar: "/assets/avatars/anderson.png", status: "activating" as const, model: "Claude Sonnet 4" },
-  // Future builds
-  { id: "oracle", name: "Oracle", emoji: "👁️", role: "Security & Awareness", avatar: "/assets/avatars/oracle.png", status: "future" as const, model: "TBD" },
-  { id: "pressy", name: "Pressy", emoji: "📣", role: "Communications", avatar: "/assets/avatars/pressy.png", status: "future" as const, model: "TBD" },
-  { id: "doc", name: "Doc", emoji: "🩺", role: "Health & Wellness", avatar: "/assets/avatars/doc.png", status: "future" as const, model: "TBD" },
-];
-
 // ─── Tab Definitions ───────────────────────────────────────
 const tabs = [
   { id: "hq", label: "HQ", icon: "🏠" },
@@ -55,6 +38,11 @@ const tabs = [
   { id: "apps", label: "Apps", icon: "🧩" },
   { id: "chat", label: "Chat", icon: "💬" },
 ];
+
+const agentNameMap = agents.reduce<Record<string, string>>((acc, agent) => {
+  acc[agent.name] = agent.id;
+  return acc;
+}, {});
 
 // ─── Hooks ─────────────────────────────────────────────────
 function useSupabaseTasks() {
@@ -312,12 +300,21 @@ function PriorityInbox({ emails, onDismiss, onFeedback }: {
             </div>
             {/* Agent tags */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 6 }}>
-              {email.agents.map((a, i) => (
-                <div key={i} style={{ fontSize: 16, color: 'var(--accent-cyan)' }}>
-                  <span style={{ color: 'var(--accent-magenta)', fontFamily: 'var(--font-heading)' }}>{a.agent}:</span>{' '}
-                  <span style={{ color: 'var(--text-secondary)' }}>{a.reason}</span>
-                </div>
-              ))}
+              {email.agents.map((a, i) => {
+                const slug = agentNameMap[a.agent];
+                return (
+                  <div key={i} style={{ fontSize: 16, color: 'var(--accent-cyan)' }}>
+                    {slug ? (
+                      <Link href={`/agent/${slug}`} style={{ color: 'var(--accent-magenta)', fontFamily: 'var(--font-heading)', textDecoration: 'none' }}>
+                        {a.agent}:
+                      </Link>
+                    ) : (
+                      <span style={{ color: 'var(--accent-magenta)', fontFamily: 'var(--font-heading)' }}>{a.agent}:</span>
+                    )}{' '}
+                    <span style={{ color: 'var(--text-secondary)' }}>{a.reason}</span>
+                  </div>
+                );
+              })}
             </div>
             {/* Age */}
             <div style={{ fontSize: 14, color: ageColor(email.received_at) }}>
@@ -369,20 +366,22 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback }: {
         </h3>
         <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
           {agents.map(a => (
-            <div key={a.id} className="panel" style={{ minWidth: 140, textAlign: 'center', flex: '0 0 auto' }}>
-              <div style={{ position: 'relative', width: 64, height: 64, margin: '0 auto 8px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--accent-magenta)' }}>
-                <Image src={a.avatar} alt={a.name} fill style={{ objectFit: 'cover' }} />
+            <Link key={a.id} href={`/agent/${a.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div className="panel" style={{ minWidth: 140, textAlign: 'center', flex: '0 0 auto' }}>
+                <div style={{ position: 'relative', width: 64, height: 64, margin: '0 auto 8px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--accent-magenta)' }}>
+                  <Image src={a.avatar} alt={a.name} fill style={{ objectFit: 'cover' }} />
+                </div>
+                <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, color: 'var(--accent-magenta)' }}>
+                  {a.emoji} {a.name}
+                </div>
+                <div style={{ fontSize: 16, color: 'var(--text-secondary)' }}>{a.role}</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 6, fontSize: 14, color: a.status === 'active' ? 'var(--accent-green)' : a.status === 'activating' ? 'var(--accent-amber)' : 'var(--text-muted)' }}>
+                  {a.status === 'active' && <><span className="pulse-dot" /> Online</>}
+                  {a.status === 'activating' && <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-amber)', boxShadow: '0 0 6px var(--accent-amber)' }} /> Activating</>}
+                  {a.status === 'planned' && <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-muted)' }} /> Planned</>}
+                </div>
               </div>
-              <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, color: 'var(--accent-magenta)' }}>
-                {a.emoji} {a.name}
-              </div>
-              <div style={{ fontSize: 16, color: 'var(--text-secondary)' }}>{a.role}</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 6, fontSize: 14, color: a.status === 'active' ? 'var(--accent-green)' : a.status === 'activating' ? 'var(--accent-amber)' : 'var(--text-muted)' }}>
-                {a.status === 'active' && <><span className="pulse-dot" /> Online</>}
-                {a.status === 'activating' && <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-amber)', boxShadow: '0 0 6px var(--accent-amber)' }} /> Activating</>}
-                {a.status === 'future' && <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-muted)' }} /> Future Build</>}
-              </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
@@ -425,13 +424,20 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback }: {
           { time: "01:00", text: "Build brief compiled", agent: "Ace" },
           { time: "00:45", text: "Agent avatars approved", agent: "Wesley" },
           { time: "00:20", text: "Standing orders migrated", agent: "Anderson" },
-        ].map((e, i) => (
-          <div key={i} style={{ display: 'flex', gap: 12, padding: '4px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 16 }}>
-            <span style={{ color: 'var(--text-muted)', minWidth: 50 }}>{e.time}</span>
-            <span style={{ color: 'var(--accent-cyan)', minWidth: 80 }}>{e.agent}</span>
-            <span>{e.text}</span>
-          </div>
-        ))}
+        ].map((e, i) => {
+          const slug = agentNameMap[e.agent];
+          return (
+            <div key={i} style={{ display: 'flex', gap: 12, padding: '4px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 16 }}>
+              <span style={{ color: 'var(--text-muted)', minWidth: 50 }}>{e.time}</span>
+              {slug ? (
+                <Link href={`/agent/${slug}`} style={{ color: 'var(--accent-cyan)', minWidth: 80, textDecoration: 'none' }}>{e.agent}</Link>
+              ) : (
+                <span style={{ color: 'var(--accent-cyan)', minWidth: 80 }}>{e.agent}</span>
+              )}
+              <span>{e.text}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
