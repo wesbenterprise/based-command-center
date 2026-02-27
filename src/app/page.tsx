@@ -30,11 +30,21 @@ interface Stats {
 
 // ─── Agents ────────────────────────────────────────────────
 const agents = [
-  { id: "ace", name: "Ace", emoji: "♠️", role: "Chief of Staff", avatar: "/assets/avatars/ace.png" },
-  { id: "astra", name: "Astra", emoji: "🔮", role: "Strategist", avatar: "/assets/avatars/astra.png" },
-  { id: "dezayas", name: "Dezayas", emoji: "🔧", role: "Builder", avatar: "/assets/avatars/dezayas.png" },
-  { id: "rybo", name: "Rybo", emoji: "🃏", role: "Storyteller", avatar: "/assets/avatars/rybo.png" },
-  { id: "charles", name: "Charles", emoji: "📜", role: "Historian", avatar: "/assets/avatars/charles.png" },
+  // Active agents
+  { id: "ace", name: "Ace", emoji: "♠️", role: "Chief of Staff", avatar: "/assets/avatars/ace.png", status: "active" as const, model: "Claude Opus 4" },
+  { id: "astra", name: "Astra", emoji: "⚡", role: "Strategist", avatar: "/assets/avatars/astra.png", status: "active" as const, model: "Claude Opus 4" },
+  { id: "dezayas", name: "Dezayas", emoji: "🔧", role: "Builder", avatar: "/assets/avatars/dezayas.png", status: "active" as const, model: "GPT-5.2 Codex" },
+  { id: "rybo", name: "Rybo", emoji: "🎭", role: "The Pragmatist", avatar: "/assets/avatars/rybo.png", status: "active" as const, model: "Claude Opus 4" },
+  { id: "charles", name: "Charles", emoji: "📜", role: "Historian", avatar: "/assets/avatars/charles.png", status: "active" as const, model: "Claude Sonnet 4" },
+  { id: "romero", name: "Romero", emoji: "🎨", role: "Creative Director", avatar: "/assets/avatars/romero.png", status: "active" as const, model: "Claude Sonnet 4" },
+  { id: "cid", name: "Cid", emoji: "🎮", role: "Game Designer", avatar: "/assets/avatars/cid.png", status: "active" as const, model: "GPT-5.2 Codex" },
+  { id: "julius", name: "Julius", emoji: "🌉", role: "Philanthropic Advisor", avatar: "/assets/avatars/julius.png", status: "active" as const, model: "Claude Sonnet 4" },
+  // Activating
+  { id: "anderson", name: "Anderson", emoji: "📊", role: "Financial Modeler", avatar: "/assets/avatars/anderson.png", status: "activating" as const, model: "Claude Sonnet 4" },
+  // Future builds
+  { id: "oracle", name: "Oracle", emoji: "👁️", role: "Security & Awareness", avatar: "/assets/avatars/oracle.png", status: "future" as const, model: "TBD" },
+  { id: "pressy", name: "Pressy", emoji: "📣", role: "Communications", avatar: "/assets/avatars/pressy.png", status: "future" as const, model: "TBD" },
+  { id: "doc", name: "Doc", emoji: "🩺", role: "Health & Wellness", avatar: "/assets/avatars/doc.png", status: "future" as const, model: "TBD" },
 ];
 
 // ─── Tab Definitions ───────────────────────────────────────
@@ -367,8 +377,10 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback }: {
                 {a.emoji} {a.name}
               </div>
               <div style={{ fontSize: 16, color: 'var(--text-secondary)' }}>{a.role}</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 6, fontSize: 14, color: 'var(--accent-green)' }}>
-                <span className="pulse-dot" /> Online
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 6, fontSize: 14, color: a.status === 'active' ? 'var(--accent-green)' : a.status === 'activating' ? 'var(--accent-amber)' : 'var(--text-muted)' }}>
+                {a.status === 'active' && <><span className="pulse-dot" /> Online</>}
+                {a.status === 'activating' && <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-amber)', boxShadow: '0 0 6px var(--accent-amber)' }} /> Activating</>}
+                {a.status === 'future' && <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-muted)' }} /> Future Build</>}
               </div>
             </div>
           ))}
