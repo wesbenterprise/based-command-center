@@ -1,4 +1,7 @@
+import Link from 'next/link';
 import { Entity, RelationshipEdge } from '../../types/entities';
+import { deliverables } from '../../data/deliverables';
+import DeliverableCard from '../deliverables/DeliverableCard';
 import { ENTITY_TYPE_COLORS, ENTITY_TYPE_LABELS, RELATIONSHIP_LABELS, STATUS_COLORS, needsCriticalAccent } from './entityStyles';
 
 interface EntityDetailProps {
@@ -28,6 +31,9 @@ export default function EntityDetail({
 
   const outgoing = entity.outgoing || [];
   const incoming = entity.incoming || [];
+  const entityDeliverables = deliverables
+    .filter(d => d.project === entity.slug)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return (
     <div style={{
@@ -108,6 +114,22 @@ export default function EntityDetail({
         <section style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>Financial Notes</div>
           <div style={{ fontSize: 16, color: 'var(--text-secondary)' }}>{entity.financial_notes}</div>
+        </section>
+      )}
+
+      {entityDeliverables.length > 0 && (
+        <section style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Deliverables</div>
+            <Link href={`/output?project=${entity.slug}`} style={{ color: 'var(--accent-cyan)', fontSize: 12, textDecoration: 'none' }}>
+              View all →
+            </Link>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {entityDeliverables.slice(0, 5).map(deliverable => (
+              <DeliverableCard key={deliverable.id} deliverable={deliverable} compact />
+            ))}
+          </div>
         </section>
       )}
 

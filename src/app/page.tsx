@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { categories } from "../apps.config";
 import { tasks as fallbackTasks, Task } from "../data/tasks";
 import { agents } from "../data/agents";
+import { deliverables } from "../data/deliverables";
 import { supabase } from "../lib/supabase";
 import Image from "next/image";
 import Link from "next/link";
@@ -35,6 +37,7 @@ const tabs = [
   { id: "hq", label: "HQ", icon: "🏠" },
   { id: "ops", label: "Ops", icon: "⚡" },
   { id: "intel", label: "Intel", icon: "📊" },
+  { id: "output", label: "Output", icon: "📦" },
   { id: "apps", label: "Apps", icon: "🧩" },
   { id: "chat", label: "Chat", icon: "💬" },
 ];
@@ -535,6 +538,8 @@ function ChatTab() {
 
 // ─── Main App ──────────────────────────────────────────────
 export default function Home() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("hq");
   const [command, setCommand] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -542,6 +547,20 @@ export default function Home() {
   const { emails, dismiss, sendFeedback } = useFlaggedEmails();
   const hasRedEmail = emails.some(e => e.priority === 'red');
   const stats = useStats(tasks.length, emails.length, hasRedEmail);
+  const draftCount = deliverables.filter(d => d.status === 'draft').length;
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'output') {
+      router.push('/output');
+      return;
+    }
+    if (tabParam && tabs.some(t => t.id === tabParam)) {
+      setActiveTab(tabParam);
+    } else {
+      setActiveTab('hq');
+    }
+  }, [searchParams, router]);
 
   const handleCommand = useCallback(() => {
     if (!command.trim()) return;
@@ -597,8 +616,29 @@ export default function Home() {
         borderBottom: '1px solid var(--border-subtle)', background: 'rgba(10,10,10,0.6)'
       }}>
         {tabs.map(t => (
-          <button key={t.id} className={`tab-btn ${activeTab === t.id ? 'active' : ''}`} onClick={() => setActiveTab(t.id)}>
+          <button
+            key={t.id}
+            className={`tab-btn ${activeTab === t.id ? 'active' : ''}`}
+            onClick={() => {
+              if (t.id === 'output') {
+                router.push('/output');
+                return;
+              }
+              if (t.id === 'hq') {
+                router.push('/');
+                setActiveTab('hq');
+                return;
+              }
+              router.push(`/?tab=${t.id}`);
+              setActiveTab(t.id);
+            }}
+          >
             {t.icon} {t.label}
+            {t.id === 'output' && draftCount > 0 && (
+              <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--accent-amber)' }}>
+                {draftCount}
+              </span>
+            )}
           </button>
         ))}
       </nav>
