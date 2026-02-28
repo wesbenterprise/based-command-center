@@ -3,6 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { agents, agentMap } from "../../../data/agents";
 import { tasks } from "../../../data/tasks";
+
+export function generateStaticParams() {
+  return agents.map((agent) => ({ slug: agent.id }));
+}
 import { deliverables } from "../../../data/deliverables";
 import AgentHero from "../../../components/agents/AgentHero";
 import AgentStats from "../../../components/agents/AgentStats";
