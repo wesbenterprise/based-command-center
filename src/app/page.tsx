@@ -32,6 +32,30 @@ interface Stats {
   hasRedEmail: boolean;
 }
 
+// ─── Idle Time Helper ──────────────────────────────────────
+function formatIdleTime(lastActive?: string): string | null {
+  if (!lastActive) return null;
+  const diff = Date.now() - new Date(lastActive).getTime();
+  if (diff < 0) return null;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d`;
+}
+
+function idleColor(lastActive?: string): string {
+  if (!lastActive) return 'var(--text-muted)';
+  const diff = Date.now() - new Date(lastActive).getTime();
+  const hrs = diff / 3600000;
+  if (hrs < 1) return 'var(--accent-green)';
+  if (hrs < 12) return 'var(--accent-cyan)';
+  if (hrs < 48) return 'var(--accent-amber)';
+  return 'var(--text-muted)';
+}
+
 // ─── Tab Definitions ───────────────────────────────────────
 const tabs = [
   { id: "hq", label: "HQ", icon: "🏠" },
@@ -383,6 +407,16 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback }: {
                   {a.status === 'activating' && <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-amber)', boxShadow: '0 0 6px var(--accent-amber)' }} /> Activating</>}
                   {a.status === 'planned' && <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-muted)' }} /> Planned</>}
                 </div>
+                {a.lastActive && (
+                  <div style={{ marginTop: 4, fontSize: 12, color: idleColor(a.lastActive), fontFamily: 'var(--font-body)', letterSpacing: '0.02em' }}>
+                    idle: {formatIdleTime(a.lastActive)}
+                  </div>
+                )}
+                {!a.lastActive && a.status !== 'planned' && (
+                  <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-body)', letterSpacing: '0.02em' }}>
+                    idle: never used
+                  </div>
+                )}
               </div>
             </Link>
           ))}

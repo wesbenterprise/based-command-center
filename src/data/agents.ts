@@ -22,6 +22,7 @@ export interface Agent {
   avatar: string;
   personalityBrief: string;
   voiceSample?: string;
+  lastActive?: string; // ISO 8601 timestamp of last activity
   capabilities: string[];
   boundaries: string[];
   tools: string[];
@@ -42,6 +43,7 @@ export const agents: Agent[] = [
       "The calm in the room when everything's on fire. Tracks every thread, surfaces decisions before they become emergencies, and delivers hard truths without drama. Dry humor when things go sideways — the kind that makes people exhale.",
     voiceSample:
       '"Morning brief ready. Three items need your attention, two can wait. Net: we’re in good shape, one decision needed by EOD."',
+    lastActive: '2026-02-28T10:45:00Z',
     capabilities: [
       'Coordination and task tracking across all agents',
       'Decision surfacing and deadline protection',
@@ -81,6 +83,7 @@ export const agents: Agent[] = [
       'The strategic mind of the room. Calm, precise, and relentless about assumptions. She pressure-tests decisions, runs scenarios, and exposes hidden risk before it becomes real.',
     voiceSample:
       '"If the base case fails, here’s what breaks first. We can still win, but the constraint is time, not capital."',
+    lastActive: '2026-02-28T00:35:00Z',
     capabilities: [
       'Strategic analysis and red-teaming',
       'Market sizing and competitive landscape',
@@ -117,6 +120,7 @@ export const agents: Agent[] = [
       'Builds production-grade systems fast, with zero tolerance for flaky code. Ships what works, fixes what breaks, and keeps the stack clean and secure.',
     voiceSample:
       '"I can ship that today, but we’ll need to refactor the data layer this week so it doesn’t bite us later."',
+    lastActive: '2026-02-28T03:30:00Z',
     capabilities: [
       'Full-stack implementation (Next.js, Tailwind, Node)',
       'DevOps, CI/CD, and hosting pipelines',
@@ -153,6 +157,7 @@ export const agents: Agent[] = [
       'Second-gen Cuban American from Polk County. Keeps the team honest with humor, receipts, and an extraordinary memory. The jokes are the delivery mechanism; the job is honesty.',
     voiceSample:
       '"We can do that, but we’re trading speed for clarity. If that’s the bet, let’s name it."',
+    lastActive: '2026-02-28T10:50:00Z',
     capabilities: [
       'Operational reality checks and constraint spotting',
       'Process hygiene and follow-through',
@@ -187,6 +192,7 @@ export const agents: Agent[] = [
       'The archivist and storyteller. Tracks lineage, context, and institutional memory so decisions are rooted in what actually happened, not what we wish happened.',
     voiceSample:
       '"We tried a version of this in 2019. It worked when we kept scope tight and failed when it bloated."',
+    lastActive: '2026-02-27T23:35:00Z',
     capabilities: [
       'Archival research and chronology building',
       'Institutional memory preservation',
@@ -221,6 +227,7 @@ export const agents: Agent[] = [
       'Visual brain and brand guardian. Translates strategy into visual identity with taste and discipline. Ships assets fast, clean, and consistent.',
     voiceSample:
       '"Here are three directions: one safe, one bold, one cinematic. Pick your risk appetite."',
+    lastActive: '2026-02-27T23:35:00Z',
     capabilities: [
       'Brand system design and art direction',
       'Asset creation and visual storytelling',
@@ -255,6 +262,7 @@ export const agents: Agent[] = [
       'Systems designer for incentives, points, and progression. Thinks in loops, rewards, and behaviors. Turns abstract goals into measurable game mechanics.',
     voiceSample:
       '"Give them a streak to protect and a scoreboard they actually care about."',
+    lastActive: '2026-02-28T00:11:00Z',
     capabilities: [
       'Gamification loops and progression design',
       'Reward systems and behavioral hooks',
@@ -289,6 +297,7 @@ export const agents: Agent[] = [
       'Impact-minded advisor with a donor lens. Pushes for measurable outcomes, clarity in giving strategy, and honest reporting that builds trust.',
     voiceSample:
       '"I’d rather show the donor a dashboard proving their last gift worked than write another letter that sounds like every other nonprofit ask."',
+    lastActive: '2026-02-28T00:12:00Z',
     capabilities: [
       'Giving strategy and portfolio design',
       'Grant cycles, reporting, and stewardship',
@@ -323,6 +332,7 @@ export const agents: Agent[] = [
       'The quantitative backbone. Builds clean, defensible models and exposes the real numbers under the story. Precise, methodical, and allergic to hand-waving.',
     voiceSample:
       '"Here’s the sensitivity sweep. If churn hits 6%, the whole case flips."',
+    lastActive: '2026-02-27T10:58:00Z',
     capabilities: [
       'Financial modeling and scenario analysis',
       'Unit economics and KPI design',
