@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { DeliverableFilters, DeliverableType } from '@/data/deliverables';
+import type { DeliverableFilters, DeliverableType } from '@/data/deliverables';
 import { deliverableTypes } from '@/data/deliverable-types';
 
 interface DeliverableFiltersProps {

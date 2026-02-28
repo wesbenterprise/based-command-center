@@ -1,7 +1,8 @@
+import { Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import DeliverableFeed from '@/components/deliverables/DeliverableFeed';
-import { DeliverableFilters, deliverables } from '@/data/deliverables';
+import { deliverables } from '@/data/deliverables';
 
 const tabs = [
   { id: 'hq', label: 'HQ', icon: '🏠', href: '/' },
@@ -12,14 +13,7 @@ const tabs = [
   { id: 'chat', label: 'Chat', icon: '💬', href: '/?tab=chat' },
 ];
 
-export default function OutputPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-  const initialFilters: DeliverableFilters = {
-    agent: typeof searchParams.agent === 'string' ? searchParams.agent : undefined,
-    type: typeof searchParams.type === 'string' ? (searchParams.type as DeliverableFilters['type']) : undefined,
-    project: typeof searchParams.project === 'string' ? searchParams.project : undefined,
-    search: typeof searchParams.search === 'string' ? searchParams.search : undefined,
-    status: typeof searchParams.status === 'string' ? (searchParams.status as DeliverableFilters['status']) : undefined,
-  };
+export default function OutputPage() {
   const draftCount = deliverables.filter(d => d.status === 'draft').length;
 
   return (
@@ -73,7 +67,9 @@ export default function OutputPage({ searchParams }: { searchParams: Record<stri
 
       <main style={{ flex: 1, padding: '24px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <DeliverableFeed initialFilters={initialFilters} />
+          <Suspense fallback={<div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 18, textAlign: 'center', padding: 40 }}>Loading deliverables...</div>}>
+            <DeliverableFeed />
+          </Suspense>
         </div>
       </main>
 
