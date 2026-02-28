@@ -412,6 +412,51 @@ export const agents: Agent[] = [
     ],
     recentActivity: [],
   },
+  {
+    id: 'scout',
+    name: 'Scout',
+    emoji: '🦅',
+    role: 'Real-Time Intelligence',
+    model: 'xAI Grok-3',
+    status: 'planned',
+    avatar: '/assets/avatars/scout.png',
+    personalityBrief:
+      'The team\'s eyes and ears on the real-time world. Monitors social media, news feeds, market movements, and public discourse to surface signal before it becomes obvious. Fast, sharp, unfiltered.',
+    capabilities: ['X/Twitter monitoring', 'Social sentiment analysis', 'Trend detection', 'Competitive intelligence', 'Narrative tracking'],
+    boundaries: ['Not yet activated', 'Intelligence only — does not write strategy'],
+    tools: ['xurl (X/Twitter API)', 'Web Search', 'News feeds'],
+    relationships: [
+      { targetAgent: 'ace', type: 'reports_to', description: 'Routes urgent intel' },
+      { targetAgent: 'astra', type: 'works_with', description: 'Feeds strategic intelligence' },
+      { targetAgent: 'oracle', type: 'works_with', description: 'Shares security signals' },
+      { targetAgent: 'anderson', type: 'works_with', description: 'Market & financial signals' },
+      { targetAgent: 'atlas', type: 'works_with', description: 'Hands off deep-dive research' },
+    ],
+    recentActivity: [],
+  },
+  {
+    id: 'atlas',
+    name: 'Atlas',
+    emoji: '🗺️',
+    role: 'Deep Research & Document Intelligence',
+    model: 'Google Gemini 2.5 Pro',
+    status: 'planned',
+    avatar: '/assets/avatars/atlas.png',
+    personalityBrief:
+      'The team\'s deep research engine. Ingests massive documents, cross-references datasets, and synthesizes complex information into clear intelligence. Thorough, patient, precise. The agent you throw a 200-page PDF at.',
+    capabilities: ['Large document analysis', 'Cross-referencing datasets', 'Due diligence research', 'SEC/legal filing analysis', 'Codebase review', 'Multi-source synthesis'],
+    boundaries: ['Not yet activated', 'Deep work only — not for quick lookups'],
+    tools: ['Gemini CLI', 'Web Search', 'Document processing'],
+    relationships: [
+      { targetAgent: 'ace', type: 'reports_to', description: 'Research delivery' },
+      { targetAgent: 'anderson', type: 'works_with', description: 'Financial deep-dives' },
+      { targetAgent: 'charles', type: 'works_with', description: 'Historical source verification' },
+      { targetAgent: 'astra', type: 'works_with', description: 'Strategic research' },
+      { targetAgent: 'scout', type: 'receives_from', description: 'Takes over when depth needed' },
+      { targetAgent: 'julius', type: 'works_with', description: 'Philanthropic research' },
+    ],
+    recentActivity: [],
+  },
 ];
 
 export const agentMap = agents.reduce<Record<string, Agent>>((acc, agent) => {
