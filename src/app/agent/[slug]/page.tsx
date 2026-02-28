@@ -25,8 +25,9 @@ const tabs = [
   { id: 'chat', label: 'Chat', icon: '💬', href: '/?tab=chat' },
 ];
 
-export default function AgentProfilePage({ params }: { params: { slug: string } }) {
-  const agent = agentMap[params.slug];
+export default async function AgentProfilePage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const agent = agentMap[slug];
   if (!agent) return notFound();
 
   const assignedTasks = tasks.filter(t => t.assignedAgent === agent.id);
