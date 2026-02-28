@@ -56,6 +56,22 @@ function idleColor(lastActive?: string): string {
   return 'var(--text-muted)';
 }
 
+function useAgentHeartbeats() {
+  const [heartbeats, setHeartbeats] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const fetchHeartbeats = () => {
+      fetch('/api/heartbeats')
+        .then(r => r.json())
+        .then(data => { if (!data.error) setHeartbeats(data); })
+        .catch(() => {});
+    };
+    fetchHeartbeats();
+    const interval = setInterval(fetchHeartbeats, 60000); // refresh every minute
+    return () => clearInterval(interval);
+  }, []);
+  return heartbeats;
+}
+
 // ─── Tab Definitions ───────────────────────────────────────
 const tabs = [
   { id: "hq", label: "HQ", icon: "🏠" },
@@ -355,12 +371,13 @@ function PriorityInbox({ emails, onDismiss, onFeedback }: {
 }
 
 // ─── HQ Tab ────────────────────────────────────────────────
-function HQTab({ tasks, emails, stats, onDismiss, onFeedback }: {
+function HQTab({ tasks, emails, stats, onDismiss, onFeedback, heartbeats }: {
   tasks: Task[];
   emails: FlaggedEmail[];
   stats: Stats;
   onDismiss: (id: string) => void;
   onFeedback: (email: FlaggedEmail, type: string) => void;
+  heartbeats: Record<string, string>;
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -407,16 +424,20 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback }: {
                   {a.status === 'activating' && <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-amber)', boxShadow: '0 0 6px var(--accent-amber)' }} /> Activating</>}
                   {a.status === 'planned' && <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-muted)' }} /> Planned</>}
                 </div>
-                {a.lastActive && (
-                  <div style={{ marginTop: 4, fontSize: 12, color: idleColor(a.lastActive), fontFamily: 'var(--font-body)', letterSpacing: '0.02em' }}>
-                    idle: {formatIdleTime(a.lastActive)}
-                  </div>
-                )}
-                {!a.lastActive && a.status !== 'planned' && (
-                  <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-body)', letterSpacing: '0.02em' }}>
-                    idle: never used
-                  </div>
-                )}
+                {(() => {
+                  const hb = heartbeats[a.id] || a.lastActive;
+                  if (hb) return (
+                    <div style={{ marginTop: 4, fontSize: 12, color: idleColor(hb), fontFamily: 'var(--font-body)', letterSpacing: '0.02em' }}>
+                      idle: {formatIdleTime(hb)}
+                    </div>
+                  );
+                  if (a.status !== 'planned') return (
+                    <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-body)', letterSpacing: '0.02em' }}>
+                      idle: never used
+                    </div>
+                  );
+                  return null;
+                })()}
               </div>
             </Link>
           ))}
@@ -592,6 +613,7 @@ function HomeContent() {
   const hasRedEmail = emails.some(e => e.priority === 'red');
   const stats = useStats(tasks.length, emails.length, hasRedEmail);
   const draftCount = deliverables.filter(d => d.status === 'draft').length;
+  const heartbeats = useAgentHeartbeats();
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -613,7 +635,7 @@ function HomeContent() {
   }, [command]);
 
   const tabContent: Record<string, React.ReactNode> = {
-    hq: <HQTab tasks={tasks} emails={emails} stats={stats} onDismiss={dismiss} onFeedback={sendFeedback} />,
+    hq: <HQTab tasks={tasks} emails={emails} stats={stats} onDismiss={dismiss} onFeedback={sendFeedback} heartbeats={heartbeats} />,
     ops: <OpsTab tasks={tasks} />,
     intel: <IntelTab />,
     apps: <AppsTab />,
