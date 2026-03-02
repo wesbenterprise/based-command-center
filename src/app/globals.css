@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=VT323&family=Orbitron:wght@400;500;600;700;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -13,7 +13,7 @@
   --text-secondary: rgba(255, 255, 255, 0.78);
   --text-muted: rgba(255, 255, 255, 0.6);
   --border-subtle: rgba(255, 255, 255, 0.1);
-  --font-body: 'VT323', monospace;
+  --font-body: 'Inter', sans-serif;
   --font-heading: 'Space Grotesk', 'Orbitron', sans-serif;
 }
 
