@@ -55,7 +55,7 @@ export default function DeliverableFeed({ initialFilters }: DeliverableFeedProps
       <DeliverableFiltersBar
         filters={filters}
         onFilterChange={(next) => {
-          if (!next.agent && !next.type && !next.project && !next.search && !next.status) {
+          if (!next.agent && !next.type && !next.project && !next.search && !next.status && (!next.timeRange || next.timeRange === '3d')) {
             clearFilters();
             return;
           }
