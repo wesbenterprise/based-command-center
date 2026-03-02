@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { DeliverableFilters, DeliverableType } from '@/data/deliverables';
+import type { DeliverableFilters, DeliverableType, TimeRange } from '@/data/deliverables';
 import { deliverableTypes } from '@/data/deliverable-types';
 
 interface DeliverableFiltersProps {
@@ -34,7 +34,15 @@ export default function DeliverableFilters({
     return () => clearTimeout(t);
   }, [searchValue, filters, onFilterChange]);
 
-  const isActive = Boolean(filters.agent || filters.type || filters.project || filters.search);
+  const timeRangeOptions: { value: TimeRange; label: string }[] = [
+    { value: '1d', label: 'Last 24 hours' },
+    { value: '3d', label: 'Last 3 days' },
+    { value: '7d', label: 'Last 7 days' },
+    { value: '30d', label: 'Last 30 days' },
+    { value: 'all', label: 'All time' },
+  ];
+
+  const isActive = Boolean(filters.agent || filters.type || filters.project || filters.search || (filters.timeRange && filters.timeRange !== '3d'));
 
   const dot = <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-cyan)', display: 'inline-block', marginLeft: 6 }} />;
 
@@ -54,6 +62,21 @@ export default function DeliverableFilters({
 
   return (
     <div style={{ borderBottom: '1px solid rgba(255,0,255,0.15)', padding: '12px 0', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 6, color: 'var(--text-muted)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <span>
+          Time Range{filters.timeRange && filters.timeRange !== '3d' ? dot : null}
+        </span>
+        <select
+          value={filters.timeRange || '3d'}
+          onChange={e => onFilterChange({ ...filters, timeRange: (e.target.value as TimeRange) })}
+          style={controlStyle}
+        >
+          {timeRangeOptions.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      </label>
+
       <label style={{ display: 'flex', flexDirection: 'column', gap: 6, color: 'var(--text-muted)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
         <span>
           All Agents{filters.agent ? dot : null}

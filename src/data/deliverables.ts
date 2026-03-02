@@ -31,12 +31,15 @@ export interface Deliverable {
   format?: string;
 }
 
+export type TimeRange = '1d' | '3d' | '7d' | '30d' | 'all';
+
 export interface DeliverableFilters {
   agent?: string;
   type?: DeliverableType;
   project?: string;
   search?: string;
   status?: DeliverableStatus;
+  timeRange?: TimeRange;
 }
 
 export const deliverables: Deliverable[] = [

@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Deliverable, DeliverableFilters, DeliverableStatus, DeliverableType } from '../data/deliverables';
+import { Deliverable, DeliverableFilters, DeliverableStatus, DeliverableType, TimeRange } from '../data/deliverables';
+
+const DEFAULT_TIME_RANGE: TimeRange = '3d';
 
 const parseFilters = (params: URLSearchParams): DeliverableFilters => {
   const agent = params.get('agent') || undefined;
@@ -10,7 +12,8 @@ const parseFilters = (params: URLSearchParams): DeliverableFilters => {
   const project = params.get('project') || undefined;
   const search = params.get('search') || undefined;
   const status = (params.get('status') as DeliverableStatus) || undefined;
-  return { agent, type, project, search, status };
+  const timeRange = (params.get('timeRange') as TimeRange) || DEFAULT_TIME_RANGE;
+  return { agent, type, project, search, status, timeRange };
 };
 
 const buildQuery = (filters: DeliverableFilters) => {
@@ -20,6 +23,7 @@ const buildQuery = (filters: DeliverableFilters) => {
   if (filters.project) params.set('project', filters.project);
   if (filters.search) params.set('search', filters.search);
   if (filters.status) params.set('status', filters.status);
+  if (filters.timeRange && filters.timeRange !== DEFAULT_TIME_RANGE) params.set('timeRange', filters.timeRange);
   return params.toString();
 };
 
@@ -60,14 +64,23 @@ export function useDeliverableFilters(initialFilters?: DeliverableFilters) {
   );
 
   const clearFilters = useCallback(() => {
-    setFilters({});
+    setFilters({ timeRange: DEFAULT_TIME_RANGE });
     router.push('/output');
   }, [router]);
 
   const applyFilters = useCallback((items: Deliverable[]) => {
     const search = filters.search?.toLowerCase().trim();
+    const timeRange = filters.timeRange || DEFAULT_TIME_RANGE;
+    const now = Date.now();
+    const timeMs: Record<string, number> = { '1d': 86400000, '3d': 259200000, '7d': 604800000, '30d': 2592000000 };
+    const cutoff = timeRange === 'all' ? 0 : now - (timeMs[timeRange] || timeMs['3d']);
+
     return items
       .filter(item => {
+        if (cutoff > 0) {
+          const itemTime = new Date(item.updatedAt || item.createdAt).getTime();
+          if (itemTime < cutoff) return false;
+        }
         if (filters.agent && item.agentId !== filters.agent) return false;
         if (filters.type && item.type !== filters.type) return false;
         if (filters.project && item.project !== filters.project) return false;
