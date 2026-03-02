@@ -10,6 +10,7 @@ import { supabase } from "../lib/supabase";
 import Image from "next/image";
 import Link from "next/link";
 import EntityManagement from "../components/entities/EntityManagement";
+import BriefingSettings from "../components/cron/BriefingSettings";
 
 // ─── Types ─────────────────────────────────────────────────
 interface FlaggedEmail {
@@ -505,36 +506,39 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback, heartbeats }: {
 function OpsTab({ tasks }: { tasks: Task[] }) {
   const freqs: Task['frequency'][] = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annual'];
   return (
-    <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16, minHeight: 400 }}>
-      {freqs.map(freq => {
-        const col = tasks.filter(t => t.frequency === freq);
-        return (
-          <div key={freq} style={{ minWidth: 260, flex: '0 0 260px' }}>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, color: 'var(--accent-magenta)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              {freq} <span style={{ color: 'var(--text-muted)' }}>({col.length})</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {col.map(t => (
-                <div key={t.id} className="panel" style={{ padding: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, lineHeight: 1.3 }}>{t.name}</div>
-                    <span style={{
-                      width: 8, height: 8, borderRadius: '50%', flexShrink: 0, marginTop: 4,
-                      background: t.health === 'green' ? 'var(--accent-green)' : t.health === 'amber' ? 'var(--accent-amber)' : 'var(--accent-red)',
-                      boxShadow: `0 0 6px ${t.health === 'green' ? 'var(--accent-green)' : t.health === 'amber' ? 'var(--accent-amber)' : 'var(--accent-red)'}`
-                    }} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16, minHeight: 400 }}>
+        {freqs.map(freq => {
+          const col = tasks.filter(t => t.frequency === freq);
+          return (
+            <div key={freq} style={{ minWidth: 260, flex: '0 0 260px' }}>
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, color: 'var(--accent-magenta)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                {freq} <span style={{ color: 'var(--text-muted)' }}>({col.length})</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {col.map(t => (
+                  <div key={t.id} className="panel" style={{ padding: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                      <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, lineHeight: 1.3 }}>{t.name}</div>
+                      <span style={{
+                        width: 8, height: 8, borderRadius: '50%', flexShrink: 0, marginTop: 4,
+                        background: t.health === 'green' ? 'var(--accent-green)' : t.health === 'amber' ? 'var(--accent-amber)' : 'var(--accent-red)',
+                        boxShadow: `0 0 6px ${t.health === 'green' ? 'var(--accent-green)' : t.health === 'amber' ? 'var(--accent-amber)' : 'var(--accent-red)'}`
+                      }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 16, color: 'var(--accent-cyan)', fontFamily: 'var(--font-body)' }}>{t.project}</span>
+                      <RunButton />
+                    </div>
+                    <div style={{ fontSize: 15, color: 'var(--text-muted)', marginTop: 4 }}>Last: {t.lastRun}</div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 16, color: 'var(--accent-cyan)', fontFamily: 'var(--font-body)' }}>{t.project}</span>
-                    <RunButton />
-                  </div>
-                  <div style={{ fontSize: 15, color: 'var(--text-muted)', marginTop: 4 }}>Last: {t.lastRun}</div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+      <BriefingSettings />
     </div>
   );
 }
