@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 interface AlertRule {
   id: string;
   name: string;
-  type: string;
+  rule_type: string;
   severity?: string;
   enabled?: boolean;
   config?: any;
@@ -18,8 +18,8 @@ export default function AlertRulesConfig() {
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [newRule, setNewRule] = useState({ name: '', type: 'agent_offline', severity: 'warn', config: '{"threshold_minutes":30}', enabled: true });
-  const [editing, setEditing] = useState<Record<string, { name: string; type: string; severity: string; config: string; enabled: boolean }>>({});
+  const [newRule, setNewRule] = useState({ name: '', rule_type: 'agent_offline', severity: 'warn', config: '{"threshold_minutes":30}', enabled: true });
+  const [editing, setEditing] = useState<Record<string, { name: string; rule_type: string; severity: string; config: string; enabled: boolean }>>({});
 
   const fetchRules = useCallback(async () => {
     setError(null);
@@ -41,7 +41,7 @@ export default function AlertRulesConfig() {
     try {
       const payload = {
         name: newRule.name,
-        type: newRule.type,
+        rule_type: newRule.rule_type,
         severity: newRule.severity,
         enabled: newRule.enabled,
         config: JSON.parse(newRule.config || '{}'),
@@ -50,7 +50,7 @@ export default function AlertRulesConfig() {
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to create rule');
       setRules(prev => [json.data, ...prev]);
-      setNewRule({ name: '', type: 'agent_offline', severity: 'warn', config: '{"threshold_minutes":30}', enabled: true });
+      setNewRule({ name: '', rule_type: 'agent_offline', severity: 'warn', config: '{"threshold_minutes":30}', enabled: true });
     } catch (err: any) {
       setError(err.message || 'Failed to create rule');
     }
@@ -67,7 +67,7 @@ export default function AlertRulesConfig() {
       ...prev,
       [rule.id]: {
         name: rule.name,
-        type: rule.type,
+        rule_type: rule.rule_type,
         severity: rule.severity || 'warn',
         config: JSON.stringify(rule.config || {}, null, 2),
         enabled: rule.enabled !== false,
@@ -81,7 +81,7 @@ export default function AlertRulesConfig() {
     try {
       const payload = {
         name: values.name,
-        type: values.type,
+        rule_type: values.rule_type,
         severity: values.severity,
         enabled: values.enabled,
         config: JSON.parse(values.config || '{}'),
@@ -135,7 +135,7 @@ export default function AlertRulesConfig() {
             <div key={rule.id} style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr 0.8fr 0.6fr 0.8fr', gap: 12, alignItems: 'center' }}>
                 <span style={{ color: 'var(--accent-cyan)' }}>{rule.name}</span>
-                <span>{rule.type}</span>
+                <span>{rule.rule_type}</span>
                 <span>{rule.severity || 'warn'}</span>
                 <button onClick={() => toggleRule(rule)} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: rule.enabled === false ? 'var(--text-muted)' : 'var(--accent-green)', padding: '4px 10px', cursor: 'pointer' }}>
                   {rule.enabled === false ? 'Off' : 'On'}
@@ -154,7 +154,7 @@ export default function AlertRulesConfig() {
                     style={{ background: 'rgba(10,12,18,0.8)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', padding: '6px 10px', borderRadius: 6 }}
                   />
                   <select
-                    value={editing[rule.id].type}
+                    value={editing[rule.id].rule_type}
                     onChange={e => setEditing(prev => ({ ...prev, [rule.id]: { ...prev[rule.id], type: e.target.value } }))}
                     style={{ background: 'rgba(10,12,18,0.8)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', padding: '6px 10px', borderRadius: 6 }}
                   >
@@ -191,8 +191,8 @@ export default function AlertRulesConfig() {
                 style={{ background: 'rgba(10,12,18,0.8)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', padding: '6px 10px', borderRadius: 6 }}
               />
               <select
-                value={newRule.type}
-                onChange={e => setNewRule(prev => ({ ...prev, type: e.target.value }))}
+                value={newRule.rule_type}
+                onChange={e => setNewRule(prev => ({ ...prev, rule_type: e.target.value }))}
                 style={{ background: 'rgba(10,12,18,0.8)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', padding: '6px 10px', borderRadius: 6 }}
               >
                 {ruleTypes.map(t => (<option key={t} value={t}>{t}</option>))}

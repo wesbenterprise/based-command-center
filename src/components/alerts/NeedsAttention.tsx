@@ -9,7 +9,7 @@ interface AlertEvaluation {
   severity?: string;
   message: string;
   status: string;
-  created_at: string;
+  triggered_at: string;
 }
 
 const severityColor: Record<string, string> = {
@@ -71,7 +71,7 @@ export default function NeedsAttention() {
                   {alert.severity || 'warn'}
                 </div>
                 <div style={{ fontSize: 16 }}>{alert.message}</div>
-                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{new Date(alert.created_at).toLocaleString()}</div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{new Date(alert.triggered_at).toLocaleString()}</div>
               </div>
               <button
                 onClick={() => dismiss(alert.id)}
