@@ -6,7 +6,7 @@ export async function GET() {
     .from('alert_evaluations')
     .select('*')
     .eq('status', 'active')
-    .order('created_at', { ascending: false });
+    .order('triggered_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data });

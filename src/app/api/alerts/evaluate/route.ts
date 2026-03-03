@@ -41,7 +41,7 @@ export async function POST() {
     const config = typeof rule.config === 'string' ? JSON.parse(rule.config) : (rule.config || {});
     const severity = rule.severity || 'warn';
 
-    if (rule.type === 'agent_offline') {
+    if (rule.rule_type === 'agent_offline') {
       const threshold = Number(config.threshold_minutes || 30);
       const { data: agents } = await supabase.from('agents').select('id, updated_at');
       (agents || []).forEach(agent => {
@@ -51,14 +51,14 @@ export async function POST() {
           const message = `${agent.id} offline for ${Math.round(mins)}m`;
           const key = `${rule.id}:${message}`;
           if (!activeMessages.has(key)) {
-            triggered.push({ rule_id: rule.id, status: 'active', severity, message, context: { agent_id: agent.id, minutes: Math.round(mins) } });
+            triggered.push({ rule_id: rule.id, rule_name: rule.name, status: 'active', severity, message, details: { agent_id: agent.id, minutes: Math.round(mins) } });
             activeMessages.add(key);
           }
         }
       });
     }
 
-    if (rule.type === 'cost_spike') {
+    if (rule.rule_type === 'cost_spike') {
       const windowHours = Number(config.window_hours || 24);
       const thresholdUsd = Number(config.threshold_usd || 0);
       const { data: usage } = await supabase
@@ -70,13 +70,13 @@ export async function POST() {
         const message = `Cost spike: $${cost.toFixed(2)} in last ${windowHours}h`;
         const key = `${rule.id}:${message}`;
         if (!activeMessages.has(key)) {
-          triggered.push({ rule_id: rule.id, status: 'active', severity, message, context: { cost_usd: cost, window_hours: windowHours } });
+          triggered.push({ rule_id: rule.id, rule_name: rule.name, status: 'active', severity, message, details: { cost_usd: cost, window_hours: windowHours } });
           activeMessages.add(key);
         }
       }
     }
 
-    if (rule.type === 'error_rate') {
+    if (rule.rule_type === 'error_rate') {
       const windowHours = Number(config.window_hours || 24);
       const thresholdCount = Number(config.threshold_count || 1);
       const { count } = await supabase
@@ -88,13 +88,13 @@ export async function POST() {
         const message = `Error rate: ${count} errors in last ${windowHours}h`;
         const key = `${rule.id}:${message}`;
         if (!activeMessages.has(key)) {
-          triggered.push({ rule_id: rule.id, status: 'active', severity, message, context: { count, window_hours: windowHours } });
+          triggered.push({ rule_id: rule.id, rule_name: rule.name, status: 'active', severity, message, details: { count, window_hours: windowHours } });
           activeMessages.add(key);
         }
       }
     }
 
-    if (rule.type === 'task_stalled') {
+    if (rule.rule_type === 'task_stalled') {
       const graceHours = Number(config.grace_hours || 0);
       const { data: orders } = await supabase.from('standing_orders').select('id, name, frequency, last_run, active');
       (orders || []).forEach(order => {
@@ -106,7 +106,7 @@ export async function POST() {
           const message = `Task stalled: ${order.name} overdue by ${Math.round(overdueHours)}h`;
           const key = `${rule.id}:${message}`;
           if (!activeMessages.has(key)) {
-            triggered.push({ rule_id: rule.id, status: 'active', severity, message, context: { task_id: order.id, overdue_hours: Math.round(overdueHours) } });
+            triggered.push({ rule_id: rule.id, rule_name: rule.name, status: 'active', severity, message, details: { task_id: order.id, overdue_hours: Math.round(overdueHours) } });
             activeMessages.add(key);
           }
         }
