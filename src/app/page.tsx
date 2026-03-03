@@ -12,6 +12,7 @@ import Link from "next/link";
 import EntityManagement from "../components/entities/EntityManagement";
 import ScoutModeToggle from "../components/scout/ScoutModeToggle";
 import BriefingSettings from "../components/cron/BriefingSettings";
+import ActivityFeed from "../components/activity/ActivityFeed";
 
 // ─── Types ─────────────────────────────────────────────────
 interface FlaggedEmail {
@@ -474,34 +475,7 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback, heartbeats }: {
       </div>
 
       {/* Recent Activity */}
-      <div className="panel">
-        <h3 style={{ fontSize: 15, color: 'var(--text-muted)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
-          Recent Activity
-        </h3>
-        {[
-          { time: "02:55", text: "Command Center v3 deployed", agent: "Dezayas" },
-          { time: "02:37", text: "Asset picks confirmed", agent: "Wesley" },
-          { time: "02:15", text: "Gamification spec delivered", agent: "Cid" },
-          { time: "01:50", text: "Architecture spec v3 finalized", agent: "Astra" },
-          { time: "01:30", text: "Logo synthwave variants generated", agent: "Romero" },
-          { time: "01:00", text: "Build brief compiled", agent: "Ace" },
-          { time: "00:45", text: "Agent avatars approved", agent: "Wesley" },
-          { time: "00:20", text: "Standing orders migrated", agent: "Anderson" },
-        ].map((e, i) => {
-          const slug = agentNameMap[e.agent];
-          return (
-            <div key={i} style={{ display: 'flex', gap: 12, padding: '4px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 16 }}>
-              <span style={{ color: 'var(--text-muted)', minWidth: 50 }}>{e.time}</span>
-              {slug ? (
-                <Link href={`/agent/${slug}`} style={{ color: 'var(--accent-cyan)', minWidth: 80, textDecoration: 'none' }}>{e.agent}</Link>
-              ) : (
-                <span style={{ color: 'var(--accent-cyan)', minWidth: 80 }}>{e.agent}</span>
-              )}
-              <span>{e.text}</span>
-            </div>
-          );
-        })}
-      </div>
+      <ActivityFeed />
     </div>
   );
 }
