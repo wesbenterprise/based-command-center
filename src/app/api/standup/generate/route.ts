@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   const end = endOfDay(date).toISOString();
 
   const [activityRes, usageRes, alertRes, ordersRes] = await Promise.all([
-    supabase.from('activity_feed').select('*').gte('created_at', start).lt('triggered_at', end),
+    supabase.from('activity_feed').select('*').gte('created_at', start).lt('created_at', end),
     supabase.from('token_usage').select('*').gte('recorded_at', start).lt('recorded_at', end),
     supabase.from('alert_evaluations').select('*').gte('triggered_at', start).lt('triggered_at', end),
     supabase.from('standing_orders').select('*'),
