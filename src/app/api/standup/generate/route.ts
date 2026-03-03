@@ -94,7 +94,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase
     .from('standups')
-    .upsert([{ date, content: standup }], { onConflict: 'date' })
+    .upsert([{ date, summary, content: standup }], { onConflict: 'date' })
     .select()
     .single();
 
