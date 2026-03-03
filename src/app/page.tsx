@@ -10,6 +10,7 @@ import { supabase } from "../lib/supabase";
 import Image from "next/image";
 import Link from "next/link";
 import EntityManagement from "../components/entities/EntityManagement";
+import ScoutModeToggle from "../components/scout/ScoutModeToggle";
 import BriefingSettings from "../components/cron/BriefingSettings";
 
 // ─── Types ─────────────────────────────────────────────────
@@ -452,6 +453,9 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback, heartbeats }: {
         </h3>
         <p style={{ margin: 0, color: 'var(--accent-green)', fontSize: 18 }}>✓ Nothing needs your attention</p>
       </div>
+
+      {/* Scout Mode Toggle */}
+      <ScoutModeToggle />
 
       {/* Priority Inbox — between Needs Attention and Next Up */}
       <PriorityInbox emails={emails} onDismiss={onDismiss} onFeedback={onFeedback} />
