@@ -13,6 +13,9 @@ import EntityManagement from "../components/entities/EntityManagement";
 import ScoutModeToggle from "../components/scout/ScoutModeToggle";
 import BriefingSettings from "../components/cron/BriefingSettings";
 import ActivityFeed from "../components/activity/ActivityFeed";
+import MorningBrief from "../components/standup/MorningBrief";
+import NeedsAttention from "../components/alerts/NeedsAttention";
+import SystemTab from "../components/system/SystemTab";
 
 // ─── Types ─────────────────────────────────────────────────
 interface FlaggedEmail {
@@ -82,6 +85,7 @@ const tabs = [
   { id: "intel", label: "Intel", icon: "📊" },
   { id: "output", label: "Output", icon: "📦" },
   { id: "apps", label: "Apps", icon: "🧩" },
+  { id: "system", label: "System", icon: "🔧" },
   { id: "chat", label: "Chat", icon: "💬" },
 ];
 
@@ -384,18 +388,7 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback, heartbeats }: {
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Morning Brief */}
-      <div className="panel" style={{ borderColor: 'rgba(0,255,255,0.3)' }}>
-        <h2 style={{ fontSize: 16, color: 'var(--accent-cyan)', margin: '0 0 12px 0', textTransform: 'uppercase' }}>
-          Morning Brief
-        </h2>
-        <p style={{ margin: 0, fontSize: 20, lineHeight: 1.5 }}>
-          Good morning, Commander. BASeD Command Center is online. {stats.tasks} standing orders loaded. All systems nominal.
-          {stats.emails > 0
-            ? ` ${stats.emails} email${stats.emails > 1 ? 's' : ''} flagged for your attention.`
-            : ' The grid is quiet. Nothing needs your attention. Time to build.'}
-        </p>
-      </div>
+      <MorningBrief />
 
       {/* Stat Row */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -447,13 +440,7 @@ function HQTab({ tasks, emails, stats, onDismiss, onFeedback, heartbeats }: {
         </div>
       </div>
 
-      {/* Needs Attention */}
-      <div className="panel">
-        <h3 style={{ fontSize: 15, color: 'var(--text-muted)', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
-          Needs Attention
-        </h3>
-        <p style={{ margin: 0, color: 'var(--accent-green)', fontSize: 18 }}>✓ Nothing needs your attention</p>
-      </div>
+      <NeedsAttention />
 
       {/* Scout Mode Toggle */}
       <ScoutModeToggle />
@@ -621,6 +608,7 @@ function HomeContent() {
     ops: <OpsTab tasks={tasks} />,
     intel: <IntelTab />,
     apps: <AppsTab />,
+    system: <SystemTab />,
     chat: <ChatTab />,
   };
 
