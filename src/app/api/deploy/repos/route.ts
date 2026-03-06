@@ -49,6 +49,8 @@ export async function GET() {
             full_name: repo.full_name,
             default_branch: repo.default_branch,
             pushed_at: repo.pushed_at,
+            html_url: repo.html_url,
+            homepage: repo.homepage || null,
             unmerged_branches: unmerged,
           };
         } catch {
@@ -57,6 +59,8 @@ export async function GET() {
             full_name: repo.full_name,
             default_branch: repo.default_branch,
             pushed_at: repo.pushed_at,
+            html_url: repo.html_url,
+            homepage: repo.homepage || null,
             unmerged_branches: [],
           };
         }
