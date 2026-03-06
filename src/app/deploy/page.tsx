@@ -65,7 +65,22 @@ export default function DeployPage() {
     }
   };
 
-  const reposWithBranches = repos.filter((r) => r.unmerged_branches.length > 0);
+  // Repos with branches that have conflicts (ahead AND behind)
+  const reposWithConflicts = repos
+    .map((r) => ({
+      ...r,
+      conflict_branches: r.unmerged_branches.filter((b) => b.behind > 0),
+    }))
+    .filter((r) => r.conflict_branches.length > 0);
+
+  // Repos with clean merge candidates only (ahead, not behind)
+  const reposReadyToPush = repos
+    .map((r) => ({
+      ...r,
+      clean_branches: r.unmerged_branches.filter((b) => b.behind === 0),
+    }))
+    .filter((r) => r.clean_branches.length > 0);
+
   const reposEmpty = repos.filter((r) => r.unmerged_branches.length === 0);
 
   return (
@@ -94,14 +109,93 @@ export default function DeployPage() {
           </div>
         )}
 
-        {/* Repos with unmerged branches */}
-        {reposWithBranches.length > 0 && (
+        {/* Merge Conflicts — needs review */}
+        {reposWithConflicts.length > 0 && (
+          <section className="mb-10">
+            <h2 className="text-xs tracking-[0.2em] uppercase text-red-400 mb-4">
+              ⚠ Merge Conflicts ({reposWithConflicts.length})
+            </h2>
+            <p className="text-xs text-zinc-500 mb-4">
+              These branches are behind main — merging may fail or overwrite changes.
+            </p>
+            <div className="space-y-3">
+              {reposWithConflicts.map((repo) => (
+                <div
+                  key={repo.name}
+                  className="rounded-xl border border-red-500/20 bg-red-500/5 overflow-hidden"
+                >
+                  <div className="px-5 py-4 border-b border-red-500/10">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-white">{repo.name}</h3>
+                        <p className="text-xs text-red-400/70 mt-0.5">
+                          {repo.conflict_branches.length} branch{repo.conflict_branches.length !== 1 ? 'es' : ''} with conflicts
+                        </p>
+                      </div>
+                      <span className="text-xs text-zinc-600">
+                        pushed {new Date(repo.pushed_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-red-500/10">
+                    {repo.conflict_branches.map((branch) => {
+                      const key = `${repo.name}/${branch.name}`;
+                      const result = results[key];
+                      const isPushing = pushing === key;
+
+                      return (
+                        <div key={branch.name} className="px-5 py-3 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <code className="text-sm text-red-400 bg-red-500/10 px-2 py-0.5 rounded">
+                              {branch.name}
+                            </code>
+                            <span className="text-xs text-zinc-500">
+                              {branch.ahead} ahead, {branch.behind} behind {repo.default_branch}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            {result && (
+                              <span className={`text-xs ${result.success ? 'text-green-400' : 'text-red-400'}`}>
+                                {result.success ? '✓ ' : '✕ '}{result.message}
+                              </span>
+                            )}
+                            <button
+                              onClick={() => pushToLive(repo.name, branch.name)}
+                              disabled={isPushing || result?.success}
+                              className={`
+                                px-4 py-2 rounded-lg text-sm font-medium transition-all
+                                ${result?.success
+                                  ? 'bg-green-500/10 text-green-400 border border-green-500/20 cursor-default'
+                                  : isPushing
+                                    ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                    : 'bg-red-500/80 text-white hover:bg-red-500'
+                                }
+                                disabled:opacity-60
+                              `}
+                            >
+                              {result?.success ? 'Merged ✓' : isPushing ? 'Merging...' : 'Force Merge'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Ready to Push — clean merges */}
+        {reposReadyToPush.length > 0 && (
           <section className="mb-10">
             <h2 className="text-xs tracking-[0.2em] uppercase text-amber-400 mb-4">
-              Ready to Push ({reposWithBranches.length})
+              Ready to Push ({reposReadyToPush.length})
             </h2>
             <div className="space-y-3">
-              {reposWithBranches.map((repo) => (
+              {reposReadyToPush.map((repo) => (
                 <div
                   key={repo.name}
                   className="rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden"
@@ -111,7 +205,7 @@ export default function DeployPage() {
                       <div>
                         <h3 className="font-semibold text-white">{repo.name}</h3>
                         <p className="text-xs text-zinc-500 mt-0.5">
-                          {repo.unmerged_branches.length} branch{repo.unmerged_branches.length !== 1 ? 'es' : ''} ahead of {repo.default_branch}
+                          {repo.clean_branches.length} branch{repo.clean_branches.length !== 1 ? 'es' : ''} ready
                         </p>
                       </div>
                       <span className="text-xs text-zinc-600">
@@ -121,7 +215,7 @@ export default function DeployPage() {
                   </div>
 
                   <div className="divide-y divide-zinc-800/30">
-                    {repo.unmerged_branches.map((branch) => {
+                    {repo.clean_branches.map((branch) => {
                       const key = `${repo.name}/${branch.name}`;
                       const result = results[key];
                       const isPushing = pushing === key;
@@ -134,7 +228,6 @@ export default function DeployPage() {
                             </code>
                             <span className="text-xs text-zinc-500">
                               {branch.ahead} commit{branch.ahead !== 1 ? 's' : ''} ahead
-                              {branch.behind > 0 && `, ${branch.behind} behind`}
                             </span>
                           </div>
 
@@ -171,11 +264,11 @@ export default function DeployPage() {
           </section>
         )}
 
-        {/* Clean repos */}
+        {/* All clean productions */}
         {reposEmpty.length > 0 && (
           <section>
             <h2 className="text-xs tracking-[0.2em] uppercase text-zinc-600 mb-4">
-              Up to Date ({reposEmpty.length})
+              All Productions — Up to Date ({reposEmpty.length})
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {reposEmpty.map((repo) => (
@@ -184,7 +277,12 @@ export default function DeployPage() {
                   className="px-4 py-3 rounded-lg border border-zinc-800/30 bg-zinc-900/20 flex items-center justify-between"
                 >
                   <span className="text-sm text-zinc-400">{repo.name}</span>
-                  <span className="text-xs text-green-500/50">✓ clean</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-600">
+                      {new Date(repo.pushed_at).toLocaleDateString()}
+                    </span>
+                    <span className="text-xs text-green-500/50">✓ clean</span>
+                  </div>
                 </div>
               ))}
             </div>
