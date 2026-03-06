@@ -67,7 +67,7 @@ export async function GET() {
     repoData.sort((a, b) => {
       if (a.unmerged_branches.length > 0 && b.unmerged_branches.length === 0) return -1;
       if (a.unmerged_branches.length === 0 && b.unmerged_branches.length > 0) return 1;
-      return new Date(b.pushed_at).getTime() - new Date(a.pushed_at).getTime();
+      return new Date(b.pushed_at || 0).getTime() - new Date(a.pushed_at || 0).getTime();
     });
 
     return NextResponse.json(repoData);
