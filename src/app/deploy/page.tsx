@@ -13,7 +13,34 @@ interface Repo {
   full_name: string;
   default_branch: string;
   pushed_at: string;
+  html_url: string;
+  homepage: string | null;
   unmerged_branches: Branch[];
+}
+
+function RepoLinks({ repo }: { repo: Repo }) {
+  return (
+    <div className="flex items-center gap-3">
+      <a
+        href={repo.html_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+      >
+        GitHub ↗
+      </a>
+      {repo.homepage && (
+        <a
+          href={repo.homepage}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+        >
+          Live Site ↗
+        </a>
+      )}
+    </div>
+  );
 }
 
 export default function DeployPage() {
@@ -128,9 +155,12 @@ export default function DeployPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-semibold text-white">{repo.name}</h3>
-                        <p className="text-xs text-red-400/70 mt-0.5">
-                          {repo.conflict_branches.length} branch{repo.conflict_branches.length !== 1 ? 'es' : ''} with conflicts
-                        </p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <p className="text-xs text-red-400/70">
+                            {repo.conflict_branches.length} branch{repo.conflict_branches.length !== 1 ? 'es' : ''} with conflicts
+                          </p>
+                          <RepoLinks repo={repo} />
+                        </div>
                       </div>
                       <span className="text-xs text-zinc-600">
                         pushed {new Date(repo.pushed_at).toLocaleDateString()}
@@ -204,9 +234,12 @@ export default function DeployPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-semibold text-white">{repo.name}</h3>
-                        <p className="text-xs text-zinc-500 mt-0.5">
-                          {repo.clean_branches.length} branch{repo.clean_branches.length !== 1 ? 'es' : ''} ready
-                        </p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <p className="text-xs text-zinc-500">
+                            {repo.clean_branches.length} branch{repo.clean_branches.length !== 1 ? 'es' : ''} ready
+                          </p>
+                          <RepoLinks repo={repo} />
+                        </div>
                       </div>
                       <span className="text-xs text-zinc-600">
                         pushed {new Date(repo.pushed_at).toLocaleDateString()}
@@ -276,7 +309,10 @@ export default function DeployPage() {
                   key={repo.name}
                   className="px-4 py-3 rounded-lg border border-zinc-800/30 bg-zinc-900/20 flex items-center justify-between"
                 >
-                  <span className="text-sm text-zinc-400">{repo.name}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-zinc-400">{repo.name}</span>
+                    <RepoLinks repo={repo} />
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-zinc-600">
                       {new Date(repo.pushed_at).toLocaleDateString()}
