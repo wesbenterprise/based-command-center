@@ -6,11 +6,14 @@ const OWNER = 'wesbenterprise';
 
 export async function GET() {
   try {
-    const { data: repos } = await octokit.repos.listForAuthenticatedUser({
+    const { data: allRepos } = await octokit.repos.listForAuthenticatedUser({
       sort: 'pushed',
       per_page: 100,
       affiliation: 'owner',
     });
+
+    // Filter out archived repos (read-only, can't merge)
+    const repos = allRepos.filter((r) => !r.archived);
 
     const repoData = await Promise.all(
       repos.map(async (repo) => {
