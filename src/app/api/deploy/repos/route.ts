@@ -9,7 +9,7 @@ export async function GET() {
     const { data: repos } = await octokit.repos.listForUser({
       username: OWNER,
       sort: 'pushed',
-      per_page: 30,
+      per_page: 100,
     });
 
     const repoData = await Promise.all(
@@ -63,13 +63,14 @@ export async function GET() {
       })
     );
 
-    // Only return repos that have unmerged branches, plus always show key repos
-    const KEY_REPOS = ['grant-tracker', 'revival-classic-cocktails', 'grocery-stock-comparison'];
-    const filtered = repoData.filter(
-      (r) => r.unmerged_branches.length > 0 || KEY_REPOS.includes(r.name)
-    );
+    // Return all repos, sorted: unmerged first, then clean
+    repoData.sort((a, b) => {
+      if (a.unmerged_branches.length > 0 && b.unmerged_branches.length === 0) return -1;
+      if (a.unmerged_branches.length === 0 && b.unmerged_branches.length > 0) return 1;
+      return new Date(b.pushed_at).getTime() - new Date(a.pushed_at).getTime();
+    });
 
-    return NextResponse.json(filtered);
+    return NextResponse.json(repoData);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
