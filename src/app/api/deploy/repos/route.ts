@@ -6,10 +6,10 @@ const OWNER = 'wesbenterprise';
 
 export async function GET() {
   try {
-    const { data: repos } = await octokit.repos.listForUser({
-      username: OWNER,
+    const { data: repos } = await octokit.repos.listForAuthenticatedUser({
       sort: 'pushed',
       per_page: 100,
+      affiliation: 'owner',
     });
 
     const repoData = await Promise.all(
