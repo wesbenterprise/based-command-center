@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@octokit/rest": "^22.0.1",
     "@supabase/supabase-js": "^2.97.0",
     "next": "latest",
     "playwright": "^1.58.2",
