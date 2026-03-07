@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AppShell from "../components/AppShell";
 
 export const metadata: Metadata = {
   title: "BASeD Command Center",
@@ -16,7 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="grid-bg" />
         <div className="scanlines" />
         <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh' }}>
-          {children}
+          <AppShell>{children}</AppShell>
         </div>
       </body>
     </html>

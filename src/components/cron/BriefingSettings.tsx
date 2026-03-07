@@ -146,7 +146,7 @@ export default function BriefingSettings() {
     <div className="panel" style={{ padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <h3 style={{ margin: 0, fontSize: 18, color: 'var(--accent-magenta)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-heading)' }}>
-          Briefing Settings
+          All Jobs
         </h3>
         <button
           onClick={fetchJobs}
