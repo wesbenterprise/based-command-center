@@ -8,7 +8,6 @@ import Image from "next/image";
 import Link from "next/link";
 import MorningBrief from "../components/standup/MorningBrief";
 import NeedsAttention from "../components/alerts/NeedsAttention";
-import ScoutModeToggle from "../components/scout/ScoutModeToggle";
 import { Task, tasks as fallbackTasks } from "../data/tasks";
 
 // ─── Idle Time Helper ──────────────────────────────────────
@@ -190,8 +189,6 @@ export default function Home() {
         </div>
 
         <NeedsAttention />
-
-        <ScoutModeToggle />
 
         {/* Next Up */}
         <div className="panel">
