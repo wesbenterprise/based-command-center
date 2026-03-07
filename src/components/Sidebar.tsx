@@ -10,6 +10,7 @@ const navItems = [
   { id: 'cron', label: 'CRON', icon: '⚡', href: '/cron' },
   { id: 'intel', label: 'INTEL', icon: '📊', href: '/intel' },
   { id: 'output', label: 'OUTPUT', icon: '📦', href: '/output' },
+  { id: 'surveys', label: 'SURVEYS', icon: '📋', href: '/surveys' },
   { id: 'apps', label: 'APPS', icon: '🧩', href: '/apps' },
   { id: 'system', label: 'SYSTEM', icon: '🔧', href: '/system' },
 ];
