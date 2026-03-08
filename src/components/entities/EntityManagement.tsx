@@ -30,7 +30,6 @@ export default function EntityManagement() {
   >({ kind: 'type', type: 'all' });
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'watch' | 'inactive'>('all');
   const [search, setSearch] = useState('');
-  const [view, setView] = useState<'grid' | 'list'>('grid');
 
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
   const [formEntity, setFormEntity] = useState<Entity | null>(null);
@@ -273,8 +272,6 @@ export default function EntityManagement() {
               onStatusChange={setStatusFilter}
               search={search}
               onSearchChange={setSearch}
-              view={view}
-              onViewChange={setView}
               onSelect={handleSelectEntity}
               onEdit={openEdit}
               showTypeFilters={false}

@@ -1,6 +1,6 @@
-import EntityCard from './EntityCard';
+import { useState } from 'react';
 import { Entity, EntityType } from '../../types/entities';
-import { ENTITY_TYPE_COLORS, ENTITY_TYPE_LABELS, needsCriticalAccent } from './entityStyles';
+import { ENTITY_TYPE_COLORS, ENTITY_TYPE_LABELS, STATUS_COLORS, needsCriticalAccent } from './entityStyles';
 import type { CSSProperties } from 'react';
 
 interface EntityGridProps {
@@ -11,8 +11,6 @@ interface EntityGridProps {
   onStatusChange: (status: 'all' | 'active' | 'watch' | 'inactive') => void;
   search: string;
   onSearchChange: (value: string) => void;
-  view: 'grid' | 'list';
-  onViewChange: (view: 'grid' | 'list') => void;
   onSelect: (entity: Entity) => void;
   onEdit: (entity: Entity) => void;
   showTypeFilters?: boolean;
@@ -38,12 +36,16 @@ export default function EntityGrid({
   onStatusChange,
   search,
   onSearchChange,
-  view,
-  onViewChange,
   onSelect,
   onEdit,
   showTypeFilters = true,
 }: EntityGridProps) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const toggleExpand = (id: string) => {
+    setExpandedId(prev => (prev === id ? null : id));
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div className="panel" style={{ padding: 16 }}>
@@ -101,54 +103,267 @@ export default function EntityGrid({
             <option value="watch">Watch</option>
             <option value="inactive">Inactive</option>
           </select>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => onViewChange('grid')} style={view === 'grid' ? activeToggleStyle : toggleStyle}>Grid</button>
-            <button onClick={() => onViewChange('list')} style={view === 'list' ? activeToggleStyle : toggleStyle}>List</button>
-          </div>
         </div>
       </div>
 
-      {view === 'grid' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
-          {entities.map(entity => (
-            <EntityCard key={entity.id} entity={entity} onSelect={onSelect} onEdit={onEdit} />
-          ))}
-        </div>
-      ) : (
-        <div className="panel" style={{ padding: 12, overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 16 }}>
-            <thead>
-              <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)' }}>
-                <th style={{ padding: '8px 6px' }}>Name</th>
-                <th style={{ padding: '8px 6px' }}>Type</th>
-                <th style={{ padding: '8px 6px' }}>Agent Instructions</th>
-                <th style={{ padding: '8px 6px' }}>Links</th>
-                <th style={{ padding: '8px 6px' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entities.map(entity => {
-                const critical = needsCriticalAccent(entity.agent_instructions);
-                return (
-                  <tr key={entity.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                    <td style={{ padding: '8px 6px' }}>
-                      <button onClick={() => onSelect(entity)} style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer' }}>
-                        {entity.name}
-                      </button>
-                    </td>
-                    <td style={{ padding: '8px 6px', color: ENTITY_TYPE_COLORS[entity.type] }}>{ENTITY_TYPE_LABELS[entity.type]}</td>
-                    <td style={{ padding: '8px 6px', color: critical ? 'var(--accent-red)' : 'var(--text-secondary)' }}>
-                      {entity.agent_instructions.length > 80 ? `${entity.agent_instructions.slice(0, 80)}…` : entity.agent_instructions}
-                    </td>
-                    <td style={{ padding: '8px 6px' }}>{(entity.outgoing?.length || 0) + (entity.incoming?.length || 0)}</td>
-                    <td style={{ padding: '8px 6px' }}>{entity.status}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {entities.map(entity => {
+          const color = ENTITY_TYPE_COLORS[entity.type];
+          const label = ENTITY_TYPE_LABELS[entity.type];
+          const statusColor = STATUS_COLORS[entity.status] || 'var(--text-muted)';
+          const critical = needsCriticalAccent(entity.agent_instructions);
+          const instructionBorder = critical ? 'var(--accent-red)' : color;
+          const relationshipCount = (entity.outgoing?.length || 0) + (entity.incoming?.length || 0);
+          const isExpanded = expandedId === entity.id;
+          const instructions = entity.agent_instructions || '';
+          const truncatedInstructions = instructions.length > 120 ? `${instructions.slice(0, 120)}…` : instructions;
+
+          return (
+            <div
+              key={entity.id}
+              className="panel"
+              style={{
+                borderLeft: `3px solid ${color}`,
+                transition: 'border-color 0.2s',
+              }}
+            >
+              {/* Main row - clickable to expand */}
+              <div
+                onClick={() => toggleExpand(entity.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 16,
+                  padding: '16px 20px',
+                  cursor: 'pointer',
+                  flexWrap: 'wrap',
+                }}
+              >
+                {/* Expand indicator */}
+                <span style={{
+                  fontSize: 14,
+                  color: 'var(--text-muted)',
+                  transition: 'transform 0.2s',
+                  transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                  flexShrink: 0,
+                  width: 16,
+                  textAlign: 'center',
+                }}>
+                  ▸
+                </span>
+
+                {/* Name + full name */}
+                <div style={{ minWidth: 180, flex: '1 1 180px' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: 17, color: 'var(--text-primary)' }}>
+                    {entity.icon ? `${entity.icon} ` : ''}{entity.name}
+                  </div>
+                  {entity.full_name && entity.full_name !== entity.name && (
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{entity.full_name}</div>
+                  )}
+                </div>
+
+                {/* Type badge */}
+                <span style={{
+                  fontSize: 11,
+                  fontFamily: 'var(--font-heading)',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color,
+                  border: `1px solid ${color}`,
+                  padding: '3px 8px',
+                  background: 'rgba(255,255,255,0.04)',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
+                }}>
+                  {label}
+                </span>
+
+                {/* Description preview */}
+                <div style={{ flex: '2 1 200px', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  {entity.description
+                    ? entity.description.length > 100
+                      ? `${entity.description.slice(0, 100)}…`
+                      : entity.description
+                    : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No description</span>
+                  }
+                </div>
+
+                {/* Relationships count */}
+                <span style={{ fontSize: 13, color: 'var(--accent-cyan)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  🔗 {relationshipCount}
+                </span>
+
+                {/* Status dot + label */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <span style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: statusColor,
+                    boxShadow: `0 0 6px ${statusColor}`,
+                  }} />
+                  <span style={{
+                    fontSize: 11,
+                    fontFamily: 'var(--font-heading)',
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: statusColor,
+                  }}>
+                    {entity.status}
+                  </span>
+                </div>
+
+                {/* Edit button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(entity);
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: `1px solid ${color}`,
+                    color,
+                    padding: '4px 10px',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontFamily: 'var(--font-heading)',
+                    flexShrink: 0,
+                  }}
+                >
+                  Edit ✎
+                </button>
+              </div>
+
+              {/* Expanded accordion content */}
+              {isExpanded && (
+                <div style={{
+                  borderTop: '1px solid var(--border-subtle)',
+                  padding: '20px 20px 20px 52px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 16,
+                }}>
+                  {/* Agent Instructions */}
+                  <div style={{
+                    borderLeft: `3px solid ${instructionBorder}`,
+                    background: 'rgba(255,0,255,0.05)',
+                    padding: '12px 14px',
+                  }}>
+                    <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: instructionBorder, marginBottom: 6, fontFamily: 'var(--font-heading)' }}>
+                      ⚡ Agent Guardrails
+                    </div>
+                    <div style={{ fontSize: 14, color: critical ? 'var(--accent-red)' : 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                      {instructions || 'None'}
+                    </div>
+                  </div>
+
+                  {/* Description (full) */}
+                  {entity.description && (
+                    <div>
+                      <div style={sectionLabelStyle}>Description</div>
+                      <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                        {entity.description}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Key People */}
+                  {entity.key_people && entity.key_people.length > 0 && (
+                    <div>
+                      <div style={sectionLabelStyle}>Key People</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {entity.key_people.map((person, idx) => (
+                          <div key={idx} style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+                            <span style={{ color: 'var(--accent-cyan)' }}>{person.name}</span>
+                            <span style={{ color: 'var(--text-muted)' }}> — {person.role}</span>
+                            {person.notes && <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}> ({person.notes})</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tracking Focus */}
+                  {entity.tracking_focus && entity.tracking_focus.length > 0 && (
+                    <div>
+                      <div style={sectionLabelStyle}>Tracking Focus</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {entity.tracking_focus.map((item, idx) => (
+                          <span key={idx} style={{
+                            fontSize: 12,
+                            padding: '3px 8px',
+                            border: '1px solid var(--border-subtle)',
+                            color: 'var(--text-secondary)',
+                            background: 'rgba(255,255,255,0.04)',
+                          }}>
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Financial Notes */}
+                  {entity.financial_notes && (
+                    <div>
+                      <div style={sectionLabelStyle}>Financial Notes</div>
+                      <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                        {entity.financial_notes}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Relationships summary */}
+                  {relationshipCount > 0 && (
+                    <div>
+                      <div style={sectionLabelStyle}>Relationships ({relationshipCount})</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {entity.outgoing?.map(rel => (
+                          <div key={rel.id} style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>{rel.relationship_type.replace(/_/g, ' ')} → </span>
+                            <span style={{ color: 'var(--accent-cyan)' }}>{rel.target?.name}</span>
+                          </div>
+                        ))}
+                        {entity.incoming?.map(rel => (
+                          <div key={rel.id} style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                            <span style={{ color: 'var(--accent-cyan)' }}>{rel.source?.name}</span>
+                            <span style={{ color: 'var(--text-muted)' }}> → {rel.relationship_type.replace(/_/g, ' ')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* View full detail link */}
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      onClick={() => onSelect(entity)}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--accent-cyan)',
+                        color: 'var(--accent-cyan)',
+                        padding: '6px 14px',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontFamily: 'var(--font-heading)',
+                        letterSpacing: '0.06em',
+                      }}
+                    >
+                      Open Full Detail →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {entities.length === 0 && (
+          <div className="panel" style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>
+            No entities match the current filters.
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -161,19 +376,11 @@ const selectStyle: CSSProperties = {
   fontFamily: 'var(--font-body)',
 };
 
-const toggleStyle: CSSProperties = {
-  background: 'transparent',
-  border: '1px solid var(--border-subtle)',
-  color: 'var(--text-muted)',
-  padding: '6px 10px',
-  cursor: 'pointer',
+const sectionLabelStyle: CSSProperties = {
+  fontSize: 11,
   fontFamily: 'var(--font-heading)',
-  fontSize: 12,
+  letterSpacing: '0.1em',
   textTransform: 'uppercase',
-};
-
-const activeToggleStyle: CSSProperties = {
-  ...toggleStyle,
-  border: '1px solid var(--accent-cyan)',
-  color: 'var(--accent-cyan)',
+  color: 'var(--text-muted)',
+  marginBottom: 6,
 };
