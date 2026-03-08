@@ -85,33 +85,30 @@ function useSupabaseTasks() {
 }
 
 interface Stats {
-  tasks: number;
+  crons: number;
   flags: number;
   proposals: number;
   cost: number;
 }
 
-function useStats(taskCount: number) {
-  const [stats, setStats] = useState<Stats>({ tasks: taskCount, flags: 0, proposals: 0, cost: 0 });
-
-  useEffect(() => {
-    setStats(prev => ({ ...prev, tasks: taskCount }));
-  }, [taskCount]);
+function useStats() {
+  const [stats, setStats] = useState<Stats>({ crons: 0, flags: 0, proposals: 0, cost: 0 });
 
   useEffect(() => {
     (async () => {
-      const [flagsRes, propsRes, costRes] = await Promise.all([
+      const [cronRes, flagsRes, propsRes, costRes] = await Promise.all([
+        fetch('/api/cron').then(r => r.json()).catch(() => []),
         supabase.from('activity_log').select('id', { count: 'exact', head: true }),
         supabase.from('proposals').select('id', { count: 'exact', head: true }),
         fetch('/api/token-usage?range=30d').then(r => r.json()).catch(() => []),
       ]);
       const totalCost = Array.isArray(costRes) ? costRes.reduce((sum: number, r: { cost_usd?: number }) => sum + (r.cost_usd || 0), 0) : 0;
-      setStats(prev => ({
-        ...prev,
+      setStats({
+        crons: Array.isArray(cronRes) ? cronRes.length : 0,
         flags: flagsRes.count || 0,
         proposals: propsRes.count || 0,
         cost: totalCost,
-      }));
+      });
     })();
   }, []);
 
@@ -119,19 +116,21 @@ function useStats(taskCount: number) {
 }
 
 // ─── Stat Card ─────────────────────────────────────────────
-function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
+function StatCard({ label, value, color, href }: { label: string; value: string; color: string; href: string }) {
   return (
-    <div className="panel" style={{ textAlign: 'center', flex: 1, minWidth: 120, animation: 'statGlow 4s ease infinite' }}>
-      <div style={{ fontFamily: 'var(--font-heading)', fontSize: 28, color, lineHeight: 1 }}>{value}</div>
-      <div style={{ color: 'var(--text-secondary)', fontSize: 15, marginTop: 6, fontFamily: 'var(--font-heading)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
-    </div>
+    <Link href={href} style={{ textDecoration: 'none', color: 'inherit', flex: 1, minWidth: 120 }}>
+      <div className="panel stat-card-link" style={{ textAlign: 'center', animation: 'statGlow 4s ease infinite', cursor: 'pointer', transition: 'filter 0.2s, border-color 0.2s' }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 28, color, lineHeight: 1 }}>{value}</div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: 15, marginTop: 6, fontFamily: 'var(--font-heading)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
+      </div>
+    </Link>
   );
 }
 
 // ─── Main Page (HQ) ────────────────────────────────────────
 export default function Home() {
   const { tasks } = useSupabaseTasks();
-  const stats = useStats(tasks.length);
+  const stats = useStats();
   const heartbeats = useAgentHeartbeats();
 
   return (
@@ -141,10 +140,10 @@ export default function Home() {
 
         {/* Stat Row */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <StatCard label="Tasks" value={String(stats.tasks)} color="var(--accent-magenta)" />
-          <StatCard label="Flags" value={String(stats.flags)} color="var(--accent-green)" />
-          <StatCard label="Proposals" value={String(stats.proposals)} color="var(--accent-cyan)" />
-          <StatCard label="Cost (30d)" value={formatCost(stats.cost)} color="var(--text-secondary)" />
+          <StatCard label="CRONs" value={String(stats.crons)} color="var(--accent-magenta)" href="/cron" />
+          <StatCard label="Flags" value={String(stats.flags)} color="var(--accent-green)" href="/intel" />
+          <StatCard label="Proposals" value={String(stats.proposals)} color="var(--accent-cyan)" href="/output" />
+          <StatCard label="Cost (30d)" value={formatCost(stats.cost)} color="var(--text-secondary)" href="/system" />
         </div>
 
         {/* Agent Roster */}
