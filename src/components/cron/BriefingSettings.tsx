@@ -1,198 +1,160 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { gatewayFetch, GatewayOfflineError } from '@/lib/gateway';
+import { supabase } from '@/lib/supabase';
 
 interface CronJob {
   id: string;
-  name?: string;
-  cron?: string;
-  schedule?: string;
-  human?: string;
-  tz?: string;
-  timezone?: string;
-  message?: string;
-  enabled?: boolean;
-  nextRun?: string;
-  next_run?: string;
-  lastRun?: string;
-  last_run?: string;
-  delivery?: { channel?: string; target?: string };
-  channel?: string;
-  target?: string;
+  name: string | null;
+  cron: string | null;
+  human: string | null;
+  tz: string | null;
+  message: string | null;
+  enabled: boolean;
+  next_run: string | null;
+  last_run: string | null;
+  channel: string | null;
+  target: string | null;
+  synced_at: string | null;
 }
 
-const TIMEZONES = [
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-] as const;
+interface CronCommand {
+  id: string;
+  job_id: string;
+  action: string;
+  status: string;
+  created_at: string;
+}
 
 export default function BriefingSettings() {
   const [jobs, setJobs] = useState<CronJob[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [drafts, setDrafts] = useState<Record<string, Partial<CronJob>>>({});
-  const [saving, setSaving] = useState<Record<string, boolean>>({});
-  const [running, setRunning] = useState<Record<string, boolean>>({});
+  const [pendingCmds, setPendingCmds] = useState<Record<string, CronCommand>>({});
   const [error, setError] = useState<string | null>(null);
-  const [gatewayOnline, setGatewayOnline] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [synced, setSynced] = useState<string | null>(null);
 
   const fetchJobs = async () => {
     try {
-      const data = await gatewayFetch<{ jobs: CronJob[] } | CronJob[]>('/api/cron');
-      const list = Array.isArray(data) ? data : (data?.jobs ?? []);
-      setJobs(list);
+      const { data, error: err } = await supabase
+        .from('cron_jobs')
+        .select('*')
+        .order('name');
+
+      if (err) throw err;
+      setJobs(data || []);
       setError(null);
-      setGatewayOnline(true);
-    } catch (err) {
-      if (err instanceof GatewayOfflineError) {
-        setGatewayOnline(false);
-        setError(null);
-      } else {
-        setError(err instanceof Error ? err.message : 'Failed to load cron jobs');
-        setGatewayOnline(true);
+
+      // Get the most recent sync time
+      if (data && data.length > 0) {
+        const latest = data.reduce((a, b) =>
+          (a.synced_at || '') > (b.synced_at || '') ? a : b
+        );
+        setSynced(latest.synced_at);
       }
+
+      // Check for any pending commands
+      const { data: cmds } = await supabase
+        .from('cron_commands')
+        .select('*')
+        .in('status', ['pending', 'running']);
+
+      if (cmds) {
+        const map: Record<string, CronCommand> = {};
+        for (const c of cmds) map[c.job_id] = c;
+        setPendingCmds(map);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load cron jobs');
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchJobs();
+    // Poll every 30s for fresh data
+    const interval = setInterval(fetchJobs, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const toggleExpanded = (jobId: string) => {
     setExpanded(prev => ({ ...prev, [jobId]: !prev[jobId] }));
   };
 
-  const updateDraft = (jobId: string, patch: Partial<CronJob>) => {
-    setDrafts(prev => ({ ...prev, [jobId]: { ...prev[jobId], ...patch } }));
-  };
-
-  const scheduleLabel = (job: CronJob) => job.human || job.schedule || job.cron || '—';
-  const nextRunLabel = (job: CronJob) => job.nextRun || job.next_run || '—';
-  const lastRunLabel = (job: CronJob) => job.lastRun || job.last_run || '—';
-  const tzLabel = (job: CronJob) => job.tz || job.timezone || 'America/New_York';
-  const messageLabel = (job: CronJob) => job.message || '';
-  const cronLabel = (job: CronJob) => job.cron || '';
-  const delivery = (job: CronJob) => {
-    const channel = job.delivery?.channel || job.channel || '—';
-    const target = job.delivery?.target || job.target || '—';
-    return { channel, target };
-  };
-
-  const submitPatch = async (job: CronJob, patch: Record<string, any>) => {
-    setSaving(prev => ({ ...prev, [job.id]: true }));
+  const sendCommand = async (jobId: string, action: string, payload: Record<string, any> = {}) => {
     try {
-      // Handle enable/disable via dedicated endpoints
-      if (typeof patch.enabled === 'boolean') {
-        const endpoint = patch.enabled ? 'enable' : 'disable';
-        await gatewayFetch(`/api/cron/${job.id}/${endpoint}`, { method: 'POST' });
-      }
+      const { error: err } = await supabase
+        .from('cron_commands')
+        .insert({ job_id: jobId, action, payload });
 
-      // Handle field edits via PATCH
-      const editPatch = { ...patch };
-      delete editPatch.enabled;
-      if (Object.keys(editPatch).length > 0) {
-        await gatewayFetch(`/api/cron/${job.id}`, {
-          method: 'PATCH',
-          body: JSON.stringify(editPatch),
-        });
-      }
+      if (err) throw err;
 
-      setError(null);
-      await fetchJobs();
+      // Optimistic: show as pending
+      setPendingCmds(prev => ({
+        ...prev,
+        [jobId]: { id: 'temp', job_id: jobId, action, status: 'pending', created_at: new Date().toISOString() },
+      }));
+
+      // Refresh after a beat
+      setTimeout(fetchJobs, 2000);
     } catch (err) {
-      if (err instanceof GatewayOfflineError) {
-        setGatewayOnline(false);
-      } else {
-        setError(err instanceof Error ? err.message : 'Failed to update cron job');
-      }
-    } finally {
-      setSaving(prev => ({ ...prev, [job.id]: false }));
+      setError(err instanceof Error ? err.message : 'Failed to send command');
     }
   };
 
-  const handleSave = async (job: CronJob) => {
-    const draft = drafts[job.id] || {};
-    const cron = draft.cron ?? cronLabel(job);
-    const tz = draft.tz ?? tzLabel(job);
-    const message = draft.message ?? messageLabel(job);
-
-    const patch: Record<string, any> = {};
-    if (cron !== cronLabel(job)) patch.cron = cron;
-    if (tz !== tzLabel(job)) patch.tz = tz;
-    if (message !== messageLabel(job)) patch.message = message;
-
-    if (!Object.keys(patch).length) return;
-    await submitPatch(job, patch);
+  const handleToggle = (job: CronJob) => {
+    sendCommand(job.id, job.enabled ? 'disable' : 'enable');
   };
 
-  const handleToggle = async (job: CronJob) => {
-    await submitPatch(job, { enabled: !job.enabled });
+  const handleRun = (job: CronJob) => {
+    sendCommand(job.id, 'run');
   };
 
-  const handleRun = async (job: CronJob) => {
-    setRunning(prev => ({ ...prev, [job.id]: true }));
+  const formatTime = (iso: string | null) => {
+    if (!iso) return '—';
     try {
-      await gatewayFetch(`/api/cron/${job.id}/run`, { method: 'POST' });
-      setError(null);
-      await fetchJobs();
-    } catch (err) {
-      if (err instanceof GatewayOfflineError) {
-        setGatewayOnline(false);
+      const d = new Date(iso);
+      const now = new Date();
+      const diff = d.getTime() - now.getTime();
+
+      if (Math.abs(diff) < 60000) return 'just now';
+
+      const absDiff = Math.abs(diff);
+      const hours = Math.floor(absDiff / 3600000);
+      const mins = Math.floor((absDiff % 3600000) / 60000);
+
+      if (diff > 0) {
+        if (hours > 24) return `in ${Math.floor(hours / 24)}d`;
+        if (hours > 0) return `in ${hours}h ${mins}m`;
+        return `in ${mins}m`;
       } else {
-        setError(err instanceof Error ? err.message : 'Failed to run cron job');
+        if (hours > 24) return `${Math.floor(hours / 24)}d ago`;
+        if (hours > 0) return `${hours}h ago`;
+        return `${mins}m ago`;
       }
-    } finally {
-      setRunning(prev => ({ ...prev, [job.id]: false }));
+    } catch {
+      return iso;
     }
+  };
+
+  const syncAge = () => {
+    if (!synced) return null;
+    const diff = Date.now() - new Date(synced).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    return `${Math.floor(mins / 60)}h ago`;
   };
 
   const sortedJobs = useMemo(() => {
     return [...jobs].sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
   }, [jobs]);
 
-  if (gatewayOnline === false) {
+  if (loading) {
     return (
       <div className="panel" style={{ padding: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-          <span style={{
-            display: 'inline-block',
-            width: 10,
-            height: 10,
-            borderRadius: '50%',
-            background: 'var(--accent-red, #ff4444)',
-            boxShadow: '0 0 8px var(--accent-red, #ff4444)',
-          }} />
-          <span style={{
-            fontFamily: 'var(--font-heading)',
-            fontSize: 14,
-            color: 'var(--accent-red, #ff4444)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-          }}>
-            Gateway Offline
-          </span>
-        </div>
-        <div style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 12 }}>
-          Cannot reach the OpenClaw Gateway at <code style={{ color: 'var(--text-secondary)' }}>localhost:18789</code>.
-          Make sure the gateway is running on your machine.
-        </div>
-        <button
-          onClick={fetchJobs}
-          style={{
-            border: '1px solid var(--border-subtle)',
-            background: 'transparent',
-            color: 'var(--accent-cyan)',
-            fontFamily: 'var(--font-heading)',
-            fontSize: 12,
-            padding: '6px 12px',
-            letterSpacing: '0.08em',
-            cursor: 'pointer',
-          }}
-        >
-          Retry
-        </button>
+        <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Loading cron jobs...</div>
       </div>
     );
   }
@@ -204,32 +166,40 @@ export default function BriefingSettings() {
           <h3 style={{ margin: 0, fontSize: 18, color: 'var(--accent-magenta)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-heading)' }}>
             All Jobs
           </h3>
-          {gatewayOnline && (
-            <span style={{
-              display: 'inline-block',
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: 'var(--accent-green, #00ff88)',
-              boxShadow: '0 0 6px var(--accent-green, #00ff88)',
-            }} />
-          )}
+          <span style={{
+            display: 'inline-block',
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: 'var(--accent-green, #00ff88)',
+            boxShadow: '0 0 6px var(--accent-green, #00ff88)',
+          }} />
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.05em' }}>
+            {jobs.length} JOBS
+          </span>
         </div>
-        <button
-          onClick={fetchJobs}
-          style={{
-            border: '1px solid var(--border-subtle)',
-            background: 'transparent',
-            color: 'var(--accent-cyan)',
-            fontFamily: 'var(--font-heading)',
-            fontSize: 12,
-            padding: '6px 12px',
-            letterSpacing: '0.08em',
-            cursor: 'pointer',
-          }}
-        >
-          Refresh
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {synced && (
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.05em' }}>
+              SYNCED {syncAge()}
+            </span>
+          )}
+          <button
+            onClick={fetchJobs}
+            style={{
+              border: '1px solid var(--border-subtle)',
+              background: 'transparent',
+              color: 'var(--accent-cyan)',
+              fontFamily: 'var(--font-heading)',
+              fontSize: 12,
+              padding: '6px 12px',
+              letterSpacing: '0.08em',
+              cursor: 'pointer',
+            }}
+          >
+            Refresh
+          </button>
+        </div>
       </div>
       {error && (
         <div style={{ marginBottom: 12, color: 'var(--accent-amber)', fontSize: 14 }}>{error}</div>
@@ -238,16 +208,27 @@ export default function BriefingSettings() {
         {sortedJobs.map(job => {
           const isExpanded = expanded[job.id];
           const statusColor = job.enabled ? 'var(--accent-green)' : 'var(--text-muted)';
-          const { channel, target } = delivery(job);
+          const pending = pendingCmds[job.id];
           return (
             <div key={job.id} style={{ border: '1px solid var(--border-subtle)', padding: 14, borderRadius: 4, background: 'rgba(0,0,0,0.25)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, marginBottom: 4 }}>{job.name || job.id}</div>
-                  <div style={{ fontSize: 15, color: 'var(--text-secondary)' }}>{scheduleLabel(job)}</div>
+                  <div style={{ fontSize: 15, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{job.cron || '—'}</div>
                   <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 4 }}>
-                    Next: {nextRunLabel(job)} · Last: {lastRunLabel(job)}
+                    Next: {formatTime(job.next_run)} · Last: {formatTime(job.last_run)}
                   </div>
+                  {pending && (
+                    <div style={{
+                      fontSize: 12,
+                      color: 'var(--accent-amber)',
+                      fontFamily: 'var(--font-heading)',
+                      letterSpacing: '0.05em',
+                      marginTop: 4,
+                    }}>
+                      ⏳ {pending.action.toUpperCase()} {pending.status === 'running' ? 'IN PROGRESS' : 'QUEUED'}
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
                   <span style={{ fontSize: 12, letterSpacing: '0.08em', fontFamily: 'var(--font-heading)', color: statusColor }}>
@@ -255,6 +236,7 @@ export default function BriefingSettings() {
                   </span>
                   <button
                     onClick={() => handleToggle(job)}
+                    disabled={!!pending}
                     style={{
                       width: 46,
                       height: 22,
@@ -262,7 +244,8 @@ export default function BriefingSettings() {
                       border: '1px solid var(--border-subtle)',
                       background: job.enabled ? 'rgba(0,255,255,0.2)' : 'rgba(255,255,255,0.08)',
                       position: 'relative',
-                      cursor: 'pointer',
+                      cursor: pending ? 'not-allowed' : 'pointer',
+                      opacity: pending ? 0.5 : 1,
                     }}
                   >
                     <span
@@ -282,10 +265,10 @@ export default function BriefingSettings() {
                   <button
                     className="run-btn"
                     onClick={() => handleRun(job)}
-                    disabled={running[job.id]}
-                    style={{ fontSize: 14, padding: '6px 12px', minHeight: 34 }}
+                    disabled={!!pending}
+                    style={{ fontSize: 14, padding: '6px 12px', minHeight: 34, opacity: pending ? 0.5 : 1 }}
                   >
-                    {running[job.id] ? 'RUNNING...' : 'RUN NOW'}
+                    {pending?.action === 'run' ? 'QUEUED...' : 'RUN NOW'}
                   </button>
                   <button
                     onClick={() => toggleExpanded(job.id)}
@@ -311,100 +294,65 @@ export default function BriefingSettings() {
                     <label style={{ fontFamily: 'var(--font-heading)', fontSize: 12, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>
                       CRON EXPRESSION
                     </label>
-                    <input
-                      value={String(drafts[job.id]?.cron ?? cronLabel(job))}
-                      onChange={(e) => updateDraft(job.id, { cron: e.target.value })}
-                      style={{
-                        marginTop: 6,
-                        width: '100%',
-                        background: 'rgba(0,0,0,0.35)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-primary)',
-                        padding: '8px 10px',
-                        fontFamily: 'var(--font-body)',
-                        fontSize: 16,
-                      }}
-                    />
+                    <div style={{
+                      marginTop: 6,
+                      background: 'rgba(0,0,0,0.35)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-primary)',
+                      padding: '8px 10px',
+                      fontFamily: 'monospace',
+                      fontSize: 15,
+                    }}>
+                      {job.cron || '—'}
+                    </div>
                   </div>
 
                   <div>
                     <label style={{ fontFamily: 'var(--font-heading)', fontSize: 12, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>
                       TIMEZONE
                     </label>
-                    <select
-                      value={String(drafts[job.id]?.tz ?? tzLabel(job))}
-                      onChange={(e) => updateDraft(job.id, { tz: e.target.value })}
-                      style={{
-                        marginTop: 6,
-                        width: '100%',
-                        background: 'rgba(0,0,0,0.35)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-primary)',
-                        padding: '8px 10px',
-                        fontFamily: 'var(--font-body)',
-                        fontSize: 16,
-                      }}
-                    >
-                      {TIMEZONES.map(tz => (
-                        <option key={tz} value={tz}>{tz}</option>
-                      ))}
-                    </select>
+                    <div style={{
+                      marginTop: 6,
+                      color: 'var(--text-secondary)',
+                      fontSize: 15,
+                    }}>
+                      {job.tz || 'America/New_York'}
+                    </div>
                   </div>
 
                   <div>
                     <label style={{ fontFamily: 'var(--font-heading)', fontSize: 12, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>
                       MESSAGE / PROMPT
                     </label>
-                    <textarea
-                      value={String(drafts[job.id]?.message ?? messageLabel(job))}
-                      onChange={(e) => updateDraft(job.id, { message: e.target.value })}
-                      rows={4}
-                      style={{
-                        marginTop: 6,
-                        width: '100%',
-                        background: 'rgba(0,0,0,0.35)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-primary)',
-                        padding: '8px 10px',
-                        fontFamily: 'var(--font-body)',
-                        fontSize: 16,
-                        resize: 'vertical',
-                      }}
-                    />
+                    <div style={{
+                      marginTop: 6,
+                      background: 'rgba(0,0,0,0.35)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-secondary)',
+                      padding: '8px 10px',
+                      fontSize: 13,
+                      lineHeight: 1.5,
+                      maxHeight: 200,
+                      overflowY: 'auto',
+                      whiteSpace: 'pre-wrap',
+                    }}>
+                      {job.message || '—'}
+                    </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                     <div style={{ flex: 1, minWidth: 200 }}>
                       <div style={{ fontFamily: 'var(--font-heading)', fontSize: 12, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>
-                        DELIVERY CHANNEL
+                        TARGET
                       </div>
-                      <div style={{ marginTop: 6, color: 'var(--text-secondary)', fontSize: 15 }}>{channel}</div>
+                      <div style={{ marginTop: 6, color: 'var(--text-secondary)', fontSize: 15 }}>{job.target || '—'}</div>
                     </div>
                     <div style={{ flex: 1, minWidth: 200 }}>
                       <div style={{ fontFamily: 'var(--font-heading)', fontSize: 12, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>
-                        DELIVERY TARGET
+                        DELIVERY
                       </div>
-                      <div style={{ marginTop: 6, color: 'var(--text-secondary)', fontSize: 15 }}>{target}</div>
+                      <div style={{ marginTop: 6, color: 'var(--text-secondary)', fontSize: 15 }}>{job.channel || '—'}</div>
                     </div>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <button
-                      onClick={() => handleSave(job)}
-                      disabled={saving[job.id]}
-                      style={{
-                        border: '1px solid var(--accent-cyan)',
-                        background: 'rgba(0,255,255,0.1)',
-                        color: 'var(--accent-cyan)',
-                        fontFamily: 'var(--font-heading)',
-                        fontSize: 12,
-                        padding: '8px 18px',
-                        letterSpacing: '0.08em',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {saving[job.id] ? 'SAVING...' : 'SAVE'}
-                    </button>
                   </div>
                 </div>
               )}
@@ -412,7 +360,7 @@ export default function BriefingSettings() {
           );
         })}
         {!sortedJobs.length && (
-          <div style={{ color: 'var(--text-muted)', fontSize: 15 }}>No cron jobs found.</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 15 }}>No cron jobs found. Waiting for sync...</div>
         )}
       </div>
     </div>
