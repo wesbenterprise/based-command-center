@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { gatewayFetch, GatewayOfflineError } from '@/lib/gateway';
 
 interface ModelOption {
   value: string;
@@ -33,7 +34,13 @@ export default function AgentModelConfig({ agentId, staticModel }: { agentId: st
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/agents/models').then(r => r.json()),
+      gatewayFetch<Record<string, any>[]>('/api/agents').then(agents => {
+        const models: Record<string, string> = {};
+        for (const agent of agents) {
+          if (agent.id && agent.model) models[agent.id] = agent.model;
+        }
+        return models;
+      }),
       fetch('/api/agents/models/available').then(r => r.json()),
     ]).then(([models, available]) => {
       const model = models[agentId] || 'unknown';
@@ -66,13 +73,10 @@ export default function AgentModelConfig({ agentId, staticModel }: { agentId: st
     setConfirming(false);
     setFeedback(null);
     try {
-      const res = await fetch('/api/agents/models', {
+      await gatewayFetch(`/api/agents/${agentId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentId, model: selectedModel }),
+        body: JSON.stringify({ model: selectedModel }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to change model');
       setCurrentModel(selectedModel);
       setFeedback({ type: 'success', message: `Model changed to ${selectedModel}` });
     } catch (err) {

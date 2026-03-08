@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { agents } from "../data/agents";
 import { supabase } from "../lib/supabase";
 import { formatCost } from "../lib/format";
+import { gatewayFetch } from "../lib/gateway";
 import Image from "next/image";
 import Link from "next/link";
 import MorningBrief from "../components/standup/MorningBrief";
@@ -97,7 +98,7 @@ function useStats() {
   useEffect(() => {
     (async () => {
       const [cronRes, flagsRes, propsRes, costRes] = await Promise.all([
-        fetch('/api/cron').then(r => r.json()).catch(() => []),
+        gatewayFetch<{ jobs: any[] } | any[]>('/api/cron').then(data => Array.isArray(data) ? data : (data?.jobs ?? [])).catch(() => []),
         supabase.from('activity_log').select('id', { count: 'exact', head: true }),
         supabase.from('proposals').select('id', { count: 'exact', head: true }),
         fetch('/api/token-usage?range=30d').then(r => r.json()).catch(() => []),

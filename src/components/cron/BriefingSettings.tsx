@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { gatewayFetch, GatewayOfflineError } from '@/lib/gateway';
 
 interface CronJob {
   id: string;
@@ -35,19 +36,23 @@ export default function BriefingSettings() {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [running, setRunning] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
+  const [gatewayOnline, setGatewayOnline] = useState<boolean | null>(null);
 
   const fetchJobs = async () => {
     try {
-      const res = await fetch('/api/cron');
-      const data = await res.json();
-      if (res.ok) {
-        setJobs(Array.isArray(data) ? data : []);
+      const data = await gatewayFetch<{ jobs: CronJob[] } | CronJob[]>('/api/cron');
+      const list = Array.isArray(data) ? data : (data?.jobs ?? []);
+      setJobs(list);
+      setError(null);
+      setGatewayOnline(true);
+    } catch (err) {
+      if (err instanceof GatewayOfflineError) {
+        setGatewayOnline(false);
         setError(null);
       } else {
-        setError(data?.error || 'Failed to load cron jobs');
+        setError(err instanceof Error ? err.message : 'Failed to load cron jobs');
+        setGatewayOnline(true);
       }
-    } catch {
-      setError('Failed to load cron jobs');
     }
   };
 
@@ -78,20 +83,30 @@ export default function BriefingSettings() {
   const submitPatch = async (job: CronJob, patch: Record<string, any>) => {
     setSaving(prev => ({ ...prev, [job.id]: true }));
     try {
-      const res = await fetch('/api/cron', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: job.id, patch }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setJobs(Array.isArray(data) ? data : []);
-        setError(null);
-      } else {
-        setError(data?.error || 'Failed to update cron job');
+      // Handle enable/disable via dedicated endpoints
+      if (typeof patch.enabled === 'boolean') {
+        const endpoint = patch.enabled ? 'enable' : 'disable';
+        await gatewayFetch(`/api/cron/${job.id}/${endpoint}`, { method: 'POST' });
       }
-    } catch {
-      setError('Failed to update cron job');
+
+      // Handle field edits via PATCH
+      const editPatch = { ...patch };
+      delete editPatch.enabled;
+      if (Object.keys(editPatch).length > 0) {
+        await gatewayFetch(`/api/cron/${job.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(editPatch),
+        });
+      }
+
+      setError(null);
+      await fetchJobs();
+    } catch (err) {
+      if (err instanceof GatewayOfflineError) {
+        setGatewayOnline(false);
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to update cron job');
+      }
     } finally {
       setSaving(prev => ({ ...prev, [job.id]: false }));
     }
@@ -119,20 +134,15 @@ export default function BriefingSettings() {
   const handleRun = async (job: CronJob) => {
     setRunning(prev => ({ ...prev, [job.id]: true }));
     try {
-      const res = await fetch('/api/cron/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: job.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data?.error || 'Failed to run cron job');
+      await gatewayFetch(`/api/cron/${job.id}/run`, { method: 'POST' });
+      setError(null);
+      await fetchJobs();
+    } catch (err) {
+      if (err instanceof GatewayOfflineError) {
+        setGatewayOnline(false);
       } else {
-        setError(null);
-        fetchJobs();
+        setError(err instanceof Error ? err.message : 'Failed to run cron job');
       }
-    } catch {
-      setError('Failed to run cron job');
     } finally {
       setRunning(prev => ({ ...prev, [job.id]: false }));
     }
@@ -142,12 +152,69 @@ export default function BriefingSettings() {
     return [...jobs].sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
   }, [jobs]);
 
+  if (gatewayOnline === false) {
+    return (
+      <div className="panel" style={{ padding: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <span style={{
+            display: 'inline-block',
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: 'var(--accent-red, #ff4444)',
+            boxShadow: '0 0 8px var(--accent-red, #ff4444)',
+          }} />
+          <span style={{
+            fontFamily: 'var(--font-heading)',
+            fontSize: 14,
+            color: 'var(--accent-red, #ff4444)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+          }}>
+            Gateway Offline
+          </span>
+        </div>
+        <div style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 12 }}>
+          Cannot reach the OpenClaw Gateway at <code style={{ color: 'var(--text-secondary)' }}>localhost:18789</code>.
+          Make sure the gateway is running on your machine.
+        </div>
+        <button
+          onClick={fetchJobs}
+          style={{
+            border: '1px solid var(--border-subtle)',
+            background: 'transparent',
+            color: 'var(--accent-cyan)',
+            fontFamily: 'var(--font-heading)',
+            fontSize: 12,
+            padding: '6px 12px',
+            letterSpacing: '0.08em',
+            cursor: 'pointer',
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="panel" style={{ padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h3 style={{ margin: 0, fontSize: 18, color: 'var(--accent-magenta)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-heading)' }}>
-          All Jobs
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h3 style={{ margin: 0, fontSize: 18, color: 'var(--accent-magenta)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-heading)' }}>
+            All Jobs
+          </h3>
+          {gatewayOnline && (
+            <span style={{
+              display: 'inline-block',
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: 'var(--accent-green, #00ff88)',
+              boxShadow: '0 0 6px var(--accent-green, #00ff88)',
+            }} />
+          )}
+        </div>
         <button
           onClick={fetchJobs}
           style={{
