@@ -33,7 +33,40 @@ const TIMEZONES = [
   'America/Los_Angeles',
 ] as const;
 
-const emptyNewJob = { name: '', cron: '', tz: 'America/New_York' as string, message: '', model: 'sonnet' };
+const emptyNewJob = { name: '', hour: '9', minute: '0', frequency: 'weekdays' as string, tz: 'America/New_York' as string, message: '', model: 'sonnet' };
+
+const FREQUENCIES: Record<string, { label: string; cron: (h: string, m: string) => string }> = {
+  daily: { label: 'Every day', cron: (h, m) => `${m} ${h} * * *` },
+  weekdays: { label: 'Weekdays (Mon–Fri)', cron: (h, m) => `${m} ${h} * * 1-5` },
+  weekends: { label: 'Weekends (Sat–Sun)', cron: (h, m) => `${m} ${h} * * 0,6` },
+  monday: { label: 'Every Monday', cron: (h, m) => `${m} ${h} * * 1` },
+  sunday: { label: 'Every Sunday', cron: (h, m) => `${m} ${h} * * 0` },
+  hourly: { label: 'Every hour', cron: () => `0 * * * *` },
+  every2h: { label: 'Every 2 hours', cron: () => `0 */2 * * *` },
+  every6h: { label: 'Every 6 hours', cron: (h, m) => `${m} */6 * * *` },
+  monthly1: { label: '1st of every month', cron: (h, m) => `${m} ${h} 1 * *` },
+};
+
+function buildCron(job: typeof emptyNewJob): string {
+  const freq = FREQUENCIES[job.frequency];
+  return freq ? freq.cron(job.hour, job.minute) : `${job.minute} ${job.hour} * * *`;
+}
+
+function cronToHuman(cron: string): string {
+  for (const [, freq] of Object.entries(FREQUENCIES)) {
+    for (let h = 0; h < 24; h++) {
+      for (const m of [0, 15, 30, 45]) {
+        if (freq.cron(String(h), String(m)) === cron) {
+          const ampm = h === 0 ? '12' : h > 12 ? String(h - 12) : String(h);
+          const suffix = h < 12 ? 'AM' : 'PM';
+          const minStr = m === 0 ? '' : `:${String(m).padStart(2, '0')}`;
+          return `${ampm}${minStr} ${suffix} · ${freq.label}`;
+        }
+      }
+    }
+  }
+  return cron;
+}
 
 export default function BriefingSettings() {
   const [jobs, setJobs] = useState<CronJob[]>([]);
@@ -137,13 +170,14 @@ export default function BriefingSettings() {
   };
 
   const handleAddJob = async () => {
-    if (!newJob.name || !newJob.cron) {
-      setError('Name and cron expression are required');
+    if (!newJob.name) {
+      setError('Job name is required');
       return;
     }
+    const cronExpr = buildCron(newJob);
     await sendCommand('new', 'add', {
       name: newJob.name,
-      cron: newJob.cron,
+      cron: cronExpr,
       tz: newJob.tz,
       message: newJob.message,
       model: newJob.model,
@@ -274,15 +308,42 @@ export default function BriefingSettings() {
                 style={{ marginTop: 4, width: '100%', background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '8px 10px', fontFamily: 'var(--font-body)', fontSize: 14 }}
               />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: 10 }}>
               <div>
-                <label style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>CRON EXPRESSION</label>
-                <input
-                  value={newJob.cron}
-                  onChange={e => setNewJob(p => ({ ...p, cron: e.target.value }))}
-                  placeholder="0 9 * * 1-5"
-                  style={{ marginTop: 4, width: '100%', background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '8px 10px', fontFamily: 'monospace', fontSize: 14 }}
-                />
+                <label style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>FREQUENCY</label>
+                <select
+                  value={newJob.frequency}
+                  onChange={e => setNewJob(p => ({ ...p, frequency: e.target.value }))}
+                  style={{ marginTop: 4, width: '100%', background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '8px 10px', fontSize: 14 }}
+                >
+                  {Object.entries(FREQUENCIES).map(([key, { label }]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>HOUR</label>
+                <select
+                  value={newJob.hour}
+                  onChange={e => setNewJob(p => ({ ...p, hour: e.target.value }))}
+                  style={{ marginTop: 4, width: '100%', background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '8px 10px', fontSize: 14 }}
+                >
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const h = i === 0 ? 12 : i > 12 ? i - 12 : i;
+                    const suffix = i < 12 ? 'AM' : 'PM';
+                    return <option key={i} value={String(i)}>{h} {suffix}</option>;
+                  })}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>MINUTE</label>
+                <select
+                  value={newJob.minute}
+                  onChange={e => setNewJob(p => ({ ...p, minute: e.target.value }))}
+                  style={{ marginTop: 4, width: '100%', background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '8px 10px', fontSize: 14 }}
+                >
+                  {[0, 15, 30, 45].map(m => <option key={m} value={String(m)}>{String(m).padStart(2, '0')}</option>)}
+                </select>
               </div>
               <div>
                 <label style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>TIMEZONE</label>
@@ -291,7 +352,7 @@ export default function BriefingSettings() {
                   onChange={e => setNewJob(p => ({ ...p, tz: e.target.value }))}
                   style={{ marginTop: 4, width: '100%', background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '8px 10px', fontSize: 14 }}
                 >
-                  {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+                  {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz.split('/')[1].replace('_', ' ')}</option>)}
                 </select>
               </div>
               <div>
@@ -305,6 +366,9 @@ export default function BriefingSettings() {
                   <option value="opus">Opus</option>
                 </select>
               </div>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace', padding: '4px 0' }}>
+              Preview: <span style={{ color: 'var(--accent-cyan)' }}>{buildCron(newJob)}</span> ({newJob.tz.split('/')[1].replace('_', ' ')})
             </div>
             <div>
               <label style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>MESSAGE / PROMPT</label>
@@ -338,7 +402,10 @@ export default function BriefingSettings() {
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, marginBottom: 4 }}>{job.name || job.id}</div>
-                  <div style={{ fontSize: 15, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{job.cron || '—'}</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+                    {job.cron ? cronToHuman(job.cron) : '—'}
+                    <span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>{job.cron}</span>
+                  </div>
                   <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 4 }}>
                     Next: {formatTime(job.next_run)} · Last: {formatTime(job.last_run)}
                   </div>
