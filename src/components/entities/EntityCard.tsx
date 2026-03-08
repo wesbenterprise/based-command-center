@@ -36,10 +36,7 @@ export default function EntityCard({ entity, onSelect, onEdit }: EntityCardProps
       </div>
 
       <div style={{ cursor: 'pointer' }} onClick={() => onSelect(entity)}>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 18 }}>{entity.icon ? `${entity.icon} ` : ''}{entity.name}</div>
-        {entity.full_name && entity.full_name !== entity.name && (
-          <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>{entity.full_name}</div>
-        )}
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 18, whiteSpace: 'normal', wordBreak: 'break-word' }}>{entity.icon ? `${entity.icon} ` : ''}{entity.name}</div>
       </div>
 
       {entity.description && (

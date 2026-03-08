@@ -62,10 +62,7 @@ export default function EntityDetail({
         <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{entity.status}</span>
       </div>
 
-      <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 24, margin: '6px 0' }}>{entity.icon ? `${entity.icon} ` : ''}{entity.name}</h2>
-      {entity.full_name && entity.full_name !== entity.name && (
-        <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 12 }}>{entity.full_name}</div>
-      )}
+      <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 24, margin: '6px 0', whiteSpace: 'normal', wordBreak: 'break-word' }}>{entity.icon ? `${entity.icon} ` : ''}{entity.name}</h2>
 
       {entity.description && (
         <section style={{ marginBottom: 16 }}>

@@ -152,14 +152,11 @@ export default function EntityGrid({
                   ▸
                 </span>
 
-                {/* Name + full name */}
+                {/* Name */}
                 <div style={{ minWidth: 180, flex: '1 1 180px' }}>
-                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: 17, color: 'var(--text-primary)' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: 17, color: 'var(--text-primary)', whiteSpace: 'normal', wordBreak: 'break-word' }}>
                     {entity.icon ? `${entity.icon} ` : ''}{entity.name}
                   </div>
-                  {entity.full_name && entity.full_name !== entity.name && (
-                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{entity.full_name}</div>
-                  )}
                 </div>
 
                 {/* Type badge */}
