@@ -26,6 +26,15 @@ interface CronCommand {
   created_at: string;
 }
 
+const TIMEZONES = [
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+] as const;
+
+const emptyNewJob = { name: '', cron: '', tz: 'America/New_York' as string, message: '', model: 'sonnet' };
+
 export default function BriefingSettings() {
   const [jobs, setJobs] = useState<CronJob[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -33,6 +42,9 @@ export default function BriefingSettings() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [synced, setSynced] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newJob, setNewJob] = useState({ ...emptyNewJob });
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const fetchJobs = async () => {
     try {
@@ -111,6 +123,35 @@ export default function BriefingSettings() {
     sendCommand(job.id, 'run');
   };
 
+  const handleDelete = (job: CronJob) => {
+    if (confirmDelete === job.id) {
+      sendCommand(job.id, 'delete');
+      setConfirmDelete(null);
+      // Optimistic remove from UI
+      setJobs(prev => prev.filter(j => j.id !== job.id));
+    } else {
+      setConfirmDelete(job.id);
+      // Auto-clear confirmation after 3s
+      setTimeout(() => setConfirmDelete(prev => prev === job.id ? null : prev), 3000);
+    }
+  };
+
+  const handleAddJob = async () => {
+    if (!newJob.name || !newJob.cron) {
+      setError('Name and cron expression are required');
+      return;
+    }
+    await sendCommand('new', 'add', {
+      name: newJob.name,
+      cron: newJob.cron,
+      tz: newJob.tz,
+      message: newJob.message,
+      model: newJob.model,
+    });
+    setNewJob({ ...emptyNewJob });
+    setShowAddForm(false);
+  };
+
   const formatTime = (iso: string | null) => {
     if (!iso) return '—';
     try {
@@ -185,6 +226,21 @@ export default function BriefingSettings() {
             </span>
           )}
           <button
+            onClick={() => setShowAddForm(prev => !prev)}
+            style={{
+              border: '1px solid var(--accent-green, #00ff88)',
+              background: 'rgba(0,255,136,0.1)',
+              color: 'var(--accent-green, #00ff88)',
+              fontFamily: 'var(--font-heading)',
+              fontSize: 12,
+              padding: '6px 12px',
+              letterSpacing: '0.08em',
+              cursor: 'pointer',
+            }}
+          >
+            {showAddForm ? 'CANCEL' : '+ ADD JOB'}
+          </button>
+          <button
             onClick={fetchJobs}
             style={{
               border: '1px solid var(--border-subtle)',
@@ -204,6 +260,74 @@ export default function BriefingSettings() {
       {error && (
         <div style={{ marginBottom: 12, color: 'var(--accent-amber)', fontSize: 14 }}>{error}</div>
       )}
+
+      {showAddForm && (
+        <div style={{ border: '1px solid var(--accent-green, #00ff88)', padding: 16, borderRadius: 4, background: 'rgba(0,255,136,0.05)', marginBottom: 16 }}>
+          <h4 style={{ margin: '0 0 12px', fontFamily: 'var(--font-heading)', fontSize: 14, color: 'var(--accent-green)', letterSpacing: '0.08em' }}>NEW CRON JOB</h4>
+          <div style={{ display: 'grid', gap: 10 }}>
+            <div>
+              <label style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>NAME</label>
+              <input
+                value={newJob.name}
+                onChange={e => setNewJob(p => ({ ...p, name: e.target.value }))}
+                placeholder="e.g. Weekly Report"
+                style={{ marginTop: 4, width: '100%', background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '8px 10px', fontFamily: 'var(--font-body)', fontSize: 14 }}
+              />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>CRON EXPRESSION</label>
+                <input
+                  value={newJob.cron}
+                  onChange={e => setNewJob(p => ({ ...p, cron: e.target.value }))}
+                  placeholder="0 9 * * 1-5"
+                  style={{ marginTop: 4, width: '100%', background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '8px 10px', fontFamily: 'monospace', fontSize: 14 }}
+                />
+              </div>
+              <div>
+                <label style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>TIMEZONE</label>
+                <select
+                  value={newJob.tz}
+                  onChange={e => setNewJob(p => ({ ...p, tz: e.target.value }))}
+                  style={{ marginTop: 4, width: '100%', background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '8px 10px', fontSize: 14 }}
+                >
+                  {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>MODEL</label>
+                <select
+                  value={newJob.model}
+                  onChange={e => setNewJob(p => ({ ...p, model: e.target.value }))}
+                  style={{ marginTop: 4, width: '100%', background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '8px 10px', fontSize: 14 }}
+                >
+                  <option value="sonnet">Sonnet</option>
+                  <option value="opus">Opus</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--accent-magenta)', letterSpacing: '0.08em' }}>MESSAGE / PROMPT</label>
+              <textarea
+                value={newJob.message}
+                onChange={e => setNewJob(p => ({ ...p, message: e.target.value }))}
+                placeholder="What should the agent do when this job runs?"
+                rows={3}
+                style={{ marginTop: 4, width: '100%', background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '8px 10px', fontFamily: 'var(--font-body)', fontSize: 14, resize: 'vertical' }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={handleAddJob}
+                style={{ border: '1px solid var(--accent-green)', background: 'rgba(0,255,136,0.15)', color: 'var(--accent-green)', fontFamily: 'var(--font-heading)', fontSize: 12, padding: '8px 20px', letterSpacing: '0.08em', cursor: 'pointer' }}
+              >
+                CREATE JOB
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {sortedJobs.map(job => {
           const isExpanded = expanded[job.id];
@@ -270,21 +394,40 @@ export default function BriefingSettings() {
                   >
                     {pending?.action === 'run' ? 'QUEUED...' : 'RUN NOW'}
                   </button>
-                  <button
-                    onClick={() => toggleExpanded(job.id)}
-                    style={{
-                      border: '1px solid var(--border-subtle)',
-                      background: 'transparent',
-                      color: 'var(--accent-cyan)',
-                      fontFamily: 'var(--font-heading)',
-                      fontSize: 11,
-                      padding: '4px 10px',
-                      letterSpacing: '0.08em',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {isExpanded ? 'HIDE' : 'DETAILS'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={() => toggleExpanded(job.id)}
+                      style={{
+                        border: '1px solid var(--border-subtle)',
+                        background: 'transparent',
+                        color: 'var(--accent-cyan)',
+                        fontFamily: 'var(--font-heading)',
+                        fontSize: 11,
+                        padding: '4px 10px',
+                        letterSpacing: '0.08em',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {isExpanded ? 'HIDE' : 'DETAILS'}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(job)}
+                      disabled={!!pending}
+                      style={{
+                        border: '1px solid ' + (confirmDelete === job.id ? 'var(--accent-red, #ff4444)' : 'var(--border-subtle)'),
+                        background: confirmDelete === job.id ? 'rgba(255,68,68,0.15)' : 'transparent',
+                        color: confirmDelete === job.id ? 'var(--accent-red, #ff4444)' : 'var(--text-muted)',
+                        fontFamily: 'var(--font-heading)',
+                        fontSize: 11,
+                        padding: '4px 10px',
+                        letterSpacing: '0.08em',
+                        cursor: pending ? 'not-allowed' : 'pointer',
+                        opacity: pending ? 0.5 : 1,
+                      }}
+                    >
+                      {confirmDelete === job.id ? 'CONFIRM?' : 'DELETE'}
+                    </button>
+                  </div>
                 </div>
               </div>
 
