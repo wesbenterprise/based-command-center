@@ -166,6 +166,19 @@ h1, h2, h3, h4, h5 {
   50% { box-shadow: inset 0 0 30px rgba(255,0,255,0.1); }
 }
 
+.stat-card-link:hover {
+  filter: brightness(1.2);
+  border-color: rgba(255, 0, 255, 0.4) !important;
+}
+
+.standup-history-item {
+  transition: background 0.15s, border-color 0.15s;
+}
+.standup-history-item:hover {
+  background: rgba(0, 255, 255, 0.05) !important;
+  border-color: rgba(0, 255, 255, 0.3) !important;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }

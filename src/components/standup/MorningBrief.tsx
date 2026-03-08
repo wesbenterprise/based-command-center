@@ -27,6 +27,7 @@ export default function MorningBrief() {
   const [history, setHistory] = useState<StandupRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const parseContent = (row: StandupRecord | null): StandupContent | null => {
     if (!row) return null;
@@ -154,15 +155,46 @@ export default function MorningBrief() {
       <div style={{ marginTop: 20 }}>
         <div style={{ fontSize: 14, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Recent Standups</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {history.slice(0, 7).map(item => (
-            <button
-              key={item.id}
-              onClick={() => setDate(item.date)}
-              style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '6px 10px', cursor: 'pointer', textAlign: 'left' }}
-            >
-              {item.date}
-            </button>
-          ))}
+          {history.slice(0, 7).map(item => {
+            const isExpanded = expandedId === item.id;
+            const content = parseContent(item);
+            return (
+              <div key={item.id}>
+                <button
+                  className="standup-history-item"
+                  onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                  style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '6px 10px', cursor: 'pointer', textAlign: 'left', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <span>{item.date}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>{isExpanded ? '▲' : '▼'}</span>
+                </button>
+                {isExpanded && content && (
+                  <div style={{ border: '1px solid var(--border-subtle)', borderTop: 'none', padding: '10px 12px', fontSize: 14, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(0,0,0,0.2)' }}>
+                    <p style={{ margin: 0, lineHeight: 1.5 }}>{content.summary}</p>
+                    {content.highlights?.length > 0 && (
+                      <div>
+                        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 12, color: 'var(--accent-cyan)', marginBottom: 4 }}>Highlights</div>
+                        <ul style={{ margin: 0, paddingLeft: 18 }}>
+                          {content.highlights.map((h, i) => <li key={i}>{h}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDate(item.date); setExpandedId(null); }}
+                      style={{ background: 'transparent', border: '1px solid var(--accent-cyan)', color: 'var(--accent-cyan)', padding: '4px 10px', cursor: 'pointer', fontFamily: 'var(--font-heading)', fontSize: 12, alignSelf: 'flex-start' }}
+                    >
+                      View Full Brief
+                    </button>
+                  </div>
+                )}
+                {isExpanded && !content && (
+                  <div style={{ border: '1px solid var(--border-subtle)', borderTop: 'none', padding: '10px 12px', fontSize: 14, color: 'var(--text-muted)', background: 'rgba(0,0,0,0.2)' }}>
+                    No content available
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {history.length === 0 && <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>No history yet</div>}
         </div>
       </div>
