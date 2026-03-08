@@ -96,6 +96,19 @@ function SurveyViewer({ surveys, onRefresh }: { surveys: Survey[]; onRefresh: ()
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedSurvey, setExpandedSurvey] = useState<SurveyWithQuestions | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (survey: Survey) => {
+    if (!confirm(`Delete "${survey.title}"? This will also delete all questions and responses.`)) return;
+    setDeletingId(survey.id);
+    await fetch(`/api/surveys/${survey.id}`, { method: 'DELETE' });
+    setDeletingId(null);
+    if (expandedId === survey.id) {
+      setExpandedId(null);
+      setExpandedSurvey(null);
+    }
+    onRefresh();
+  };
 
   const handleExpand = async (id: string) => {
     if (expandedId === id) {
@@ -191,6 +204,23 @@ function SurveyViewer({ surveys, onRefresh }: { surveys: Survey[]; onRefresh: ()
               >
                 OPEN ↗
               </a>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDelete(survey); }}
+                disabled={deletingId === survey.id}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--accent-red)',
+                  color: 'var(--accent-red)',
+                  padding: '4px 12px',
+                  fontSize: 11,
+                  fontFamily: 'var(--font-heading)',
+                  letterSpacing: '0.06em',
+                  cursor: 'pointer',
+                  opacity: deletingId === survey.id ? 0.5 : 1,
+                }}
+              >
+                {deletingId === survey.id ? 'DELETING...' : 'DELETE'}
+              </button>
             </div>
           </div>
 
@@ -295,38 +325,20 @@ function SurveyCreator({ onDeployed }: { onDeployed: () => void }) {
     setError('');
 
     try {
-      // Create the survey
-      const slug = preview.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
-        .slice(0, 60);
+      const res = await fetch('/api/surveys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: preview.title,
+          description: preview.description,
+          questions: preview.questions,
+        }),
+      });
 
-      const { supabase } = await import('@/lib/supabase');
-
-      const { data: survey, error: surveyError } = await supabase
-        .from('surveys')
-        .insert({ title: preview.title, description: preview.description, slug, status: 'active' })
-        .select()
-        .single();
-
-      if (surveyError) throw new Error(surveyError.message);
-
-      // Insert questions
-      const questions = preview.questions.map((q, i) => ({
-        survey_id: survey.id,
-        text: q.text,
-        type: q.type,
-        options: q.options || null,
-        required: q.required ?? true,
-        order_index: i,
-      }));
-
-      const { error: qError } = await supabase
-        .from('survey_questions')
-        .insert(questions);
-
-      if (qError) throw new Error(qError.message);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Deploy failed');
+      }
 
       setPreview(null);
       setTextContent('');
@@ -467,7 +479,7 @@ function SurveyCreator({ onDeployed }: { onDeployed: () => void }) {
           }
         }}
       >
-        {generating ? '⟳ GENERATING WITH CLAUDE OPUS...' : '✦ GENERATE SURVEY'}
+        {generating ? '⟳ GENERATING WITH CLAUDE...' : '✦ GENERATE SURVEY'}
       </button>
 
       {error && (

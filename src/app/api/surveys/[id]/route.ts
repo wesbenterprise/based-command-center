@@ -48,3 +48,37 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   return NextResponse.json(data);
 }
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
+  // Delete questions and responses first, then the survey
+  const { error: respError } = await supabase
+    .from('survey_responses')
+    .delete()
+    .eq('survey_id', id);
+
+  if (respError) {
+    return NextResponse.json({ error: respError.message }, { status: 500 });
+  }
+
+  const { error: qError } = await supabase
+    .from('survey_questions')
+    .delete()
+    .eq('survey_id', id);
+
+  if (qError) {
+    return NextResponse.json({ error: qError.message }, { status: 500 });
+  }
+
+  const { error: surveyError } = await supabase
+    .from('surveys')
+    .delete()
+    .eq('id', id);
+
+  if (surveyError) {
+    return NextResponse.json({ error: surveyError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}

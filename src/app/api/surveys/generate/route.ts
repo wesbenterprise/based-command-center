@@ -11,6 +11,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'content is required' }, { status: 400 });
   }
 
+  if (content.length > 50000) {
+    return NextResponse.json({ error: 'content must be 50,000 characters or fewer' }, { status: 400 });
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
@@ -19,7 +23,7 @@ export async function POST(request: Request) {
   const client = new Anthropic({ apiKey });
 
   const message = await client.messages.create({
-    model: 'claude-opus-4-20250725',
+    model: 'claude-sonnet-4-20250514',
     max_tokens: 4096,
     messages: [
       {
@@ -61,7 +65,12 @@ ${content}`,
   }
 
   try {
-    const survey = JSON.parse(textBlock.text);
+    let jsonText = textBlock.text.trim();
+    // Strip markdown code fences if present
+    if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+    }
+    const survey = JSON.parse(jsonText);
     return NextResponse.json(survey);
   } catch {
     return NextResponse.json({ error: 'Failed to parse AI response', raw: textBlock.text }, { status: 500 });
