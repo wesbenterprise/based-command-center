@@ -110,6 +110,9 @@ function ChatInterface() {
   const [sessionInfo, setSessionInfo] = useState<{ sessionKey?: string; total?: number }>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const prevMessageCount = useRef(0);
+  const userScrolledUp = useRef(false);
 
   const selectedAgent = agents.find(a => a.id === selectedAgentId);
   const activeAgents = agents.filter(a => a.status !== 'planned');
@@ -147,10 +150,21 @@ function ChatInterface() {
     };
   }, [selectedAgentId, fetchHistory]);
 
-  // Auto-scroll on new messages
+  // Only auto-scroll when NEW messages arrive and user hasn't scrolled up
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > prevMessageCount.current && !userScrolledUp.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    prevMessageCount.current = messages.length;
   }, [messages]);
+
+  // Track if user has scrolled up
+  const handleScroll = useCallback(() => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    userScrolledUp.current = distFromBottom > 100;
+  }, []);
 
   async function sendMessage() {
     if (!input.trim() || sending) return;
@@ -317,7 +331,7 @@ function ChatInterface() {
         )}
 
         {/* Messages */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+        <div ref={chatContainerRef} onScroll={handleScroll} style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
           {loading && (
             <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
               <div style={{ fontSize: 14, fontFamily: 'var(--font-heading)' }}>Loading conversation...</div>
