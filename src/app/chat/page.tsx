@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { agents } from '../../data/agents';
-import { gatewayFetch } from '../../lib/gateway';
 
 // ─── Types ───────────────────────────────────────────────────
 interface ChatMessage {
@@ -16,18 +15,15 @@ interface ChatMessage {
   agentId?: string;
 }
 
-interface Session {
-  sessionKey?: string;
-  messages: ChatMessage[];
-}
-
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const secs = Math.floor(diff / 1000);
   if (secs < 60) return 'just now';
   const mins = Math.floor(secs / 60);
   if (mins < 60) return `${mins}m ago`;
-  return `${Math.floor(mins / 60)}h ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 }
 
 function relativeTimeFull(iso: string): string {
@@ -36,40 +32,17 @@ function relativeTimeFull(iso: string): string {
   return `${rel} (${abs})`;
 }
 
-// ─── Mock session data per agent ─────────────────────────────
-function mockSessionMessages(agentId: string): ChatMessage[] {
-  // TODO: replace with GET /api/sessions?kind=main&messageLimit=10
-  const agentMocks: Record<string, ChatMessage[]> = {
-    ace: [
-      { id: 'm1', role: 'assistant', content: 'Good morning. Three items need your attention today: grant deadline is 48h out, the deploy pipeline needs a decision, and Astra\'s Q2 scenario map is ready for review. Net: we\'re in good shape, one call needed.', timestamp: new Date(Date.now() - 2 * 3600000).toISOString(), agentId: 'ace' },
-      { id: 'm2', role: 'user', content: 'What\'s the status on the grant tracker deployment?', timestamp: new Date(Date.now() - 1.5 * 3600000).toISOString() },
-      { id: 'm3', role: 'assistant', content: 'Dezayas has it staged in rru-sentinel. The last build passed — only blocker is the Supabase migration script for the new grant_submissions table. ETA: 2h if we green-light now.', timestamp: new Date(Date.now() - 1.4 * 3600000).toISOString(), agentId: 'ace' },
-    ],
-    dezayas: [
-      { id: 'd1', role: 'assistant', content: 'Build pipeline is clean. Deployed Command Center v3 — all health checks passing. Working on the agent profile pages next. Any scope changes before I push?', timestamp: new Date(Date.now() - 3 * 3600000).toISOString(), agentId: 'dezayas' },
-    ],
-    astra: [
-      { id: 'a1', role: 'assistant', content: 'Q2 scenario map complete. Base case holds — constraint is sales velocity, not capital. Two assumptions worth stress-testing: conversion rate at 4% and 90-day sales cycle. Want me to run the downside sensitivity?', timestamp: new Date(Date.now() - 4 * 3600000).toISOString(), agentId: 'astra' },
-    ],
-  };
-  return agentMocks[agentId] || [];
-}
-
 // ─── Message Bubble ───────────────────────────────────────────
 function MessageBubble({ msg, agent }: { msg: ChatMessage; agent: typeof agents[0] | undefined }) {
   const isUser = msg.role === 'user';
   return (
-    <div
-      className="chat-msg"
-      style={{
-        display: 'flex',
-        flexDirection: isUser ? 'row-reverse' : 'row',
-        gap: 10,
-        alignItems: 'flex-start',
-        marginBottom: 12,
-      }}
-    >
-      {/* Avatar */}
+    <div style={{
+      display: 'flex',
+      flexDirection: isUser ? 'row-reverse' : 'row',
+      gap: 10,
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    }}>
       {!isUser && agent && (
         <div style={{
           width: 36, height: 36, flexShrink: 0,
@@ -93,25 +66,21 @@ function MessageBubble({ msg, agent }: { msg: ChatMessage; agent: typeof agents[
       )}
 
       <div style={{ maxWidth: '72%' }}>
-        {/* Name + time */}
         <div style={{
           display: 'flex', gap: 8, alignItems: 'center',
           marginBottom: 4,
           flexDirection: isUser ? 'row-reverse' : 'row',
         }}>
           <span style={{ fontSize: 12, fontFamily: 'var(--font-heading)', color: isUser ? 'var(--accent-magenta)' : 'var(--accent-green)' }}>
-            {isUser ? 'You' : (agent ? `${agent.emoji} ${agent.name}` : 'Agent')}
+            {isUser ? 'Wesley' : (agent ? `${agent.emoji} ${agent.name}` : 'Agent')}
           </span>
           <span style={{ fontSize: 10, color: 'var(--text-muted)' }} title={relativeTimeFull(msg.timestamp)}>
             {relativeTime(msg.timestamp)}
           </span>
         </div>
 
-        {/* Bubble */}
         <div style={{
-          background: isUser
-            ? 'rgba(255,0,255,0.12)'
-            : 'rgba(0,255,0,0.08)',
+          background: isUser ? 'rgba(255,0,255,0.12)' : 'rgba(0,255,0,0.08)',
           border: `1px solid ${isUser ? 'rgba(255,0,255,0.3)' : 'rgba(0,255,0,0.2)'}`,
           borderRadius: isUser ? '12px 3px 12px 12px' : '3px 12px 12px 12px',
           padding: '10px 14px',
@@ -133,39 +102,55 @@ function ChatInterface() {
   const initialAgent = searchParams.get('agent') || 'ace';
 
   const [selectedAgentId, setSelectedAgentId] = useState(initialAgent);
-  const [session, setSession] = useState<Session>({ messages: [] });
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [sessionInfo, setSessionInfo] = useState<{ sessionKey?: string; total?: number }>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const selectedAgent = agents.find(a => a.id === selectedAgentId);
   const activeAgents = agents.filter(a => a.status !== 'planned');
 
-  // Load initial mock session + start polling
+  // Fetch real message history
+  const fetchHistory = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/gateway/chat/history?agent=${selectedAgentId}&limit=50`);
+      const data = await res.json();
+      if (data.messages) {
+        setMessages(data.messages);
+        setSessionInfo({ sessionKey: data.sessionKey, total: data.total });
+      }
+      if (data.error) {
+        setError(data.error);
+      }
+    } catch (e: any) {
+      setError('Failed to fetch chat history');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedAgentId]);
+
+  // Load history on agent change
   useEffect(() => {
-    const msgs = mockSessionMessages(selectedAgentId);
-    setSession({ messages: msgs });
+    setLoading(true);
+    setMessages([]);
     setError(null);
+    fetchHistory();
 
-    // TODO: replace with real polling GET /api/sessions?kind=main&messageLimit=10
-    // pollingRef.current = setInterval(async () => {
-    //   try {
-    //     const data = await gatewayFetch(`/api/sessions?kind=main&messageLimit=10`);
-    //     // update messages from data
-    //   } catch {}
-    // }, 3000);
-
+    // Poll for new messages every 5 seconds
+    pollingRef.current = setInterval(fetchHistory, 5000);
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
-  }, [selectedAgentId]);
+  }, [selectedAgentId, fetchHistory]);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [session.messages]);
+  }, [messages]);
 
   async function sendMessage() {
     if (!input.trim() || sending) return;
@@ -181,43 +166,35 @@ function ChatInterface() {
       content,
       timestamp: new Date().toISOString(),
     };
-    setSession(s => ({ ...s, messages: [...s.messages, userMsg] }));
+    setMessages(prev => [...prev, userMsg]);
 
     try {
-      // TODO: replace with real gateway call
-      // await gatewayFetch('/api/sessions/send', {
-      //   method: 'POST',
-      //   body: JSON.stringify({ sessionKey: session.sessionKey, message: content, agentId: selectedAgentId }),
-      // });
+      const res = await fetch('/api/gateway/chat/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId: selectedAgentId, message: content }),
+      });
+      const data = await res.json();
 
-      // Mock response after delay
-      await new Promise(r => setTimeout(r, 1200 + Math.random() * 800));
-      const mockResponses: Record<string, string[]> = {
-        ace: [
-          'Understood. I\'ll track that and follow up by EOD.',
-          'Got it. Routing this to Dezayas with context — should have an update within the hour.',
-          'Noted. Adding to the priority queue. Anything else before I close the loop?',
-        ],
-        dezayas: [
-          'On it. I\'ll push a build once the tests pass — ETA 30 minutes.',
-          'Already looked at this. The issue is in the data layer. Clean fix, no regression risk.',
-        ],
-        astra: [
-          'That changes the base case assumptions. Let me re-run the scenario map with updated constraints.',
-          'Interesting angle. I\'d stress-test that assumption first — here\'s why it might not hold.',
-        ],
-      };
-      const options = mockResponses[selectedAgentId] || ['Message received. Processing.'];
-      const responseContent = options[Math.floor(Math.random() * options.length)];
+      if (!res.ok) {
+        setError(data.error || 'Failed to send message');
+        return;
+      }
 
-      const agentMsg: ChatMessage = {
-        id: `agent-${Date.now()}`,
-        role: 'assistant',
-        content: responseContent,
-        timestamp: new Date().toISOString(),
-        agentId: selectedAgentId,
-      };
-      setSession(s => ({ ...s, messages: [...s.messages, agentMsg] }));
+      // Add agent response
+      if (data.reply) {
+        const agentMsg: ChatMessage = {
+          id: `agent-${Date.now()}`,
+          role: 'assistant',
+          content: data.reply,
+          timestamp: new Date().toISOString(),
+          agentId: selectedAgentId,
+        };
+        setMessages(prev => [...prev, agentMsg]);
+      }
+
+      // Refresh full history after a short delay to sync
+      setTimeout(fetchHistory, 2000);
     } catch (e: any) {
       setError('Failed to send message. Gateway may be offline.');
     } finally {
@@ -325,8 +302,9 @@ function ChatInterface() {
                 {selectedAgent.emoji} {selectedAgent.name}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span className={selectedAgent.status === 'active' ? 'pulse-dot' : undefined} style={{ width: 6, height: 6, borderRadius: '50%', background: selectedAgent.status === 'active' ? 'var(--accent-green)' : 'var(--text-muted)', display: 'inline-block' }} />
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: selectedAgent.status === 'active' ? 'var(--accent-green)' : 'var(--text-muted)', display: 'inline-block' }} />
                 {selectedAgent.role} · {selectedAgent.model}
+                {sessionInfo.total ? ` · ${sessionInfo.total} messages` : ''}
               </div>
             </div>
             <Link href={`/agent/${selectedAgent.id}`} style={{
@@ -340,16 +318,21 @@ function ChatInterface() {
 
         {/* Messages */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-          {session.messages.length === 0 && (
+          {loading && (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: 14, fontFamily: 'var(--font-heading)' }}>Loading conversation...</div>
+            </div>
+          )}
+          {!loading && messages.length === 0 && (
             <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>💬</div>
               <div style={{ fontFamily: 'var(--font-heading)', fontSize: 14 }}>
-                Start a conversation with {selectedAgent?.name || 'the agent'}
+                No conversation history with {selectedAgent?.name || 'this agent'}
               </div>
-              <div style={{ fontSize: 12, marginTop: 6 }}>Messages are sent via the OpenClaw Gateway</div>
+              <div style={{ fontSize: 12, marginTop: 6 }}>Send a message to start</div>
             </div>
           )}
-          {session.messages.map(msg => (
+          {messages.map(msg => (
             <MessageBubble
               key={msg.id}
               msg={msg}
@@ -368,6 +351,9 @@ function ChatInterface() {
                 padding: '10px 14px',
                 display: 'flex', gap: 4, alignItems: 'center',
               }}>
+                <span style={{ fontSize: 12, color: 'var(--accent-green)', fontFamily: 'var(--font-heading)' }}>
+                  {selectedAgent?.name} is thinking...
+                </span>
                 {[0, 1, 2].map(i => (
                   <span key={i} style={{
                     width: 6, height: 6, borderRadius: '50%',
@@ -458,7 +444,7 @@ export default function ChatPage() {
           💬 Live Agent Chat
         </h1>
         <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-          Direct communication with your agent fleet · Gateway: {process.env.NEXT_PUBLIC_GATEWAY_URL || 'localhost:18789'}
+          Real conversations with your agent fleet · Messages sent via OpenClaw Gateway
         </div>
       </div>
       <Suspense fallback={<div style={{ color: 'var(--text-muted)' }}>Loading chat...</div>}>
