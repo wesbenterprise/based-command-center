@@ -11,6 +11,7 @@ import AgentActivity from "../../../components/agents/AgentActivity";
 import AgentStandingOrders from "../../../components/agents/AgentStandingOrders";
 import AgentCapabilities from "../../../components/agents/AgentCapabilities";
 import AgentModelConfig from "../../../components/agents/AgentModelConfig";
+import AgentPersonalityEditor from "../../../components/agents/AgentPersonalityEditor";
 
 export function generateStaticParams() {
   return agents.map((agent) => ({ slug: agent.id }));
@@ -41,6 +42,7 @@ export default async function AgentProfilePage({ params }: { params: Promise<{ s
           <AgentActivity agent={agent} agents={agents} />
         </div>
         <AgentModelConfig agentId={agent.id} staticModel={agent.model} />
+        <AgentPersonalityEditor agent={agent} />
         <AgentStandingOrders tasks={assignedTasks} />
         <AgentCapabilities agent={agent} />
       </div>

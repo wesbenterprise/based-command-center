@@ -10,19 +10,29 @@ import Link from "next/link";
 import MorningBrief from "../components/standup/MorningBrief";
 import NeedsAttention from "../components/alerts/NeedsAttention";
 import { Task, tasks as fallbackTasks } from "../data/tasks";
+import OpsPulse from "../components/OpsPulse";
+import ExecApprovals from "../components/ExecApprovals";
 
-// ─── Idle Time Helper ──────────────────────────────────────
+// ─── Idle Time Helpers ──────────────────────────────────────
 function formatIdleTime(lastActive?: string): string | null {
   if (!lastActive) return null;
   const diff = Date.now() - new Date(lastActive).getTime();
   if (diff < 0) return null;
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m`;
+  if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
+  if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
-  return `${days}d`;
+  return `${days}d ago`;
+}
+
+function relativeTimeFull(lastActive?: string): string {
+  if (!lastActive) return '';
+  const d = new Date(lastActive);
+  const rel = formatIdleTime(lastActive) || '';
+  const abs = d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  return `${rel} (${abs})`;
 }
 
 function idleColor(lastActive?: string): string {
@@ -35,6 +45,27 @@ function idleColor(lastActive?: string): string {
   return 'var(--text-muted)';
 }
 
+function modelBadgeClass(model: string): string {
+  const m = model.toLowerCase();
+  if (m.includes('opus')) return 'model-badge model-opus';
+  if (m.includes('sonnet')) return 'model-badge model-sonnet';
+  if (m.includes('flash')) return 'model-badge model-flash';
+  if (m.includes('gpt')) return 'model-badge model-gpt';
+  if (m.includes('gemini')) return 'model-badge model-gemini';
+  return 'model-badge model-default';
+}
+
+function modelShortName(model: string): string {
+  if (model.toLowerCase().includes('opus 4')) return 'Opus 4';
+  if (model.toLowerCase().includes('sonnet 4')) return 'Sonnet 4';
+  if (model.toLowerCase().includes('flash')) return 'Flash';
+  if (model.toLowerCase().includes('gpt-5')) return 'GPT-5';
+  if (model.toLowerCase().includes('gemini')) return 'Gemini';
+  if (model === 'TBD') return 'TBD';
+  return model.split(' ').slice(-2).join(' ');
+}
+
+// ─── Hooks ──────────────────────────────────────────────────
 function useAgentHeartbeats() {
   const [heartbeats, setHeartbeats] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -51,7 +82,6 @@ function useAgentHeartbeats() {
   return heartbeats;
 }
 
-// ─── Hooks ─────────────────────────────────────────────────
 function useSupabaseTasks() {
   const [tasks, setTasks] = useState<Task[]>(fallbackTasks);
   useEffect(() => {
@@ -94,7 +124,6 @@ interface Stats {
 
 function useStats() {
   const [stats, setStats] = useState<Stats>({ crons: 0, flags: 0, proposals: 0, cost: 0 });
-
   useEffect(() => {
     (async () => {
       const [cronRes, flagsRes, propsRes, costRes] = await Promise.all([
@@ -112,11 +141,10 @@ function useStats() {
       });
     })();
   }, []);
-
   return stats;
 }
 
-// ─── Stat Card ─────────────────────────────────────────────
+// ─── Stat Card ───────────────────────────────────────────────
 function StatCard({ label, value, color, href }: { label: string; value: string; color: string; href: string }) {
   return (
     <Link href={href} style={{ textDecoration: 'none', color: 'inherit', flex: 1, minWidth: 120 }}>
@@ -128,7 +156,160 @@ function StatCard({ label, value, color, href }: { label: string; value: string;
   );
 }
 
-// ─── Main Page (HQ) ────────────────────────────────────────
+// ─── Enhanced Agent Card ──────────────────────────────────────
+function AgentCard({ agent, heartbeat }: { agent: typeof agents[0]; heartbeat?: string }) {
+  const lastActive = heartbeat || agent.lastActive;
+  const color = idleColor(lastActive);
+
+  const statusColor = agent.status === 'active'
+    ? 'var(--accent-green)'
+    : agent.status === 'activating'
+    ? 'var(--accent-amber)'
+    : 'var(--text-muted)';
+
+  return (
+    <Link href={`/agent/${agent.id}`} style={{ textDecoration: 'none', color: 'inherit', flex: '0 0 auto' }}>
+      <div className="panel agent-card-enhanced" style={{
+        minWidth: 170,
+        maxWidth: 200,
+        padding: '14px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        height: '100%',
+      }}>
+        {/* Avatar + Status */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ position: 'relative', width: 52, height: 52 }}>
+            <div style={{
+              width: 52, height: 52,
+              borderRadius: '50%',
+              overflow: 'hidden',
+              border: `2px solid ${statusColor}`,
+              boxShadow: agent.status === 'active' ? `0 0 10px ${statusColor}40` : 'none',
+            }}>
+              <Image src={agent.avatar} alt={agent.name} width={52} height={52} style={{ objectFit: 'cover', display: 'block' }} />
+            </div>
+          </div>
+          {/* Model badge */}
+          <span className={modelBadgeClass(agent.model)}>
+            {modelShortName(agent.model)}
+          </span>
+        </div>
+
+        {/* Name + Role */}
+        <div>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span>{agent.emoji}</span>
+            <span>{agent.name}</span>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{agent.role}</div>
+        </div>
+
+        {/* Status + Last Active */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
+          <span style={{
+            width: 7, height: 7,
+            borderRadius: '50%',
+            background: statusColor,
+            display: 'inline-block',
+            boxShadow: `0 0 5px ${statusColor}`,
+            flexShrink: 0,
+          }} />
+          <span style={{ color: statusColor, fontFamily: 'var(--font-heading)', letterSpacing: '0.04em' }}>
+            {agent.status === 'active' ? 'Online' : agent.status === 'activating' ? 'Activating' : 'Planned'}
+          </span>
+        </div>
+
+        {/* Last active time */}
+        {lastActive && (
+          <div style={{ fontSize: 11, color, fontFamily: 'var(--font-body)' }} title={relativeTimeFull(lastActive)}>
+            {formatIdleTime(lastActive)}
+          </div>
+        )}
+
+        {/* Skills tags */}
+        {agent.tools.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 2 }}>
+            {agent.tools.slice(0, 3).map(tool => (
+              <span key={tool} style={{
+                fontSize: 10,
+                padding: '1px 5px',
+                background: 'rgba(0,255,255,0.08)',
+                border: '1px solid rgba(0,255,255,0.2)',
+                borderRadius: 2,
+                color: 'var(--accent-cyan)',
+                fontFamily: 'var(--font-heading)',
+                letterSpacing: '0.03em',
+                whiteSpace: 'nowrap',
+              }}>
+                {tool}
+              </span>
+            ))}
+            {agent.tools.length > 3 && (
+              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>+{agent.tools.length - 3}</span>
+            )}
+          </div>
+        )}
+
+        {/* Quick actions */}
+        <div style={{ display: 'flex', gap: 6, marginTop: 'auto', paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
+          <Link href={`/chat?agent=${agent.id}`} onClick={e => e.stopPropagation()} style={{
+            flex: 1, textAlign: 'center', fontSize: 10,
+            padding: '4px 0',
+            background: 'rgba(255,0,255,0.08)',
+            border: '1px solid rgba(255,0,255,0.25)',
+            borderRadius: 3,
+            color: 'var(--accent-magenta)',
+            textDecoration: 'none',
+            fontFamily: 'var(--font-heading)',
+            letterSpacing: '0.04em',
+            transition: 'all 0.15s',
+          }}>
+            CHAT
+          </Link>
+          <Link href={`/agent/${agent.id}`} onClick={e => e.stopPropagation()} style={{
+            flex: 1, textAlign: 'center', fontSize: 10,
+            padding: '4px 0',
+            background: 'rgba(0,255,255,0.05)',
+            border: '1px solid rgba(0,255,255,0.2)',
+            borderRadius: 3,
+            color: 'var(--accent-cyan)',
+            textDecoration: 'none',
+            fontFamily: 'var(--font-heading)',
+            letterSpacing: '0.04em',
+          }}>
+            PROFILE
+          </Link>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// ─── Fleet Status Summary ────────────────────────────────────
+function FleetSummary({ heartbeats }: { heartbeats: Record<string, string> }) {
+  const active = agents.filter(a => a.status === 'active').length;
+  const activating = agents.filter(a => a.status === 'activating').length;
+  const planned = agents.filter(a => a.status === 'planned').length;
+  return (
+    <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', fontSize: 13, fontFamily: 'var(--font-heading)' }}>
+      <span style={{ color: 'var(--accent-green)', letterSpacing: '0.05em' }}>
+        <span style={{ fontSize: 16 }}>●</span> {active} active
+      </span>
+      {activating > 0 && (
+        <span style={{ color: 'var(--accent-amber)', letterSpacing: '0.05em' }}>
+          <span style={{ fontSize: 16 }}>◑</span> {activating} activating
+        </span>
+      )}
+      <span style={{ color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+        <span style={{ fontSize: 16 }}>○</span> {planned} planned
+      </span>
+    </div>
+  );
+}
+
+// ─── Main Page (HQ) ──────────────────────────────────────────
 export default function Home() {
   const { tasks } = useSupabaseTasks();
   const stats = useStats();
@@ -147,43 +328,23 @@ export default function Home() {
           <StatCard label="Cost (30d)" value={formatCost(stats.cost)} color="var(--text-secondary)" href="/system" />
         </div>
 
-        {/* Agent Roster */}
+        {/* ─── OPS PULSE HERO ─── */}
+        <OpsPulse heartbeats={heartbeats} />
+
+        {/* ─── EXEC APPROVALS ─── */}
+        <ExecApprovals />
+
+        {/* ─── Agent Fleet ─── */}
         <div>
-          <h3 style={{ fontSize: 15, color: 'var(--text-muted)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
-            Agent Roster
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ fontSize: 15, color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+              Agent Fleet
+            </h3>
+            <FleetSummary heartbeats={heartbeats} />
+          </div>
           <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
             {agents.map(a => (
-              <Link key={a.id} href={`/agent/${a.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <div className="panel" style={{ minWidth: 140, textAlign: 'center', flex: '0 0 auto' }}>
-                  <div style={{ position: 'relative', width: 64, height: 64, margin: '0 auto 8px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--accent-magenta)' }}>
-                    <Image src={a.avatar} alt={a.name} fill style={{ objectFit: 'cover' }} />
-                  </div>
-                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, color: 'var(--accent-magenta)' }}>
-                    {a.emoji} {a.name}
-                  </div>
-                  <div style={{ fontSize: 16, color: 'var(--text-secondary)' }}>{a.role}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 6, fontSize: 14, color: a.status === 'active' ? 'var(--accent-green)' : a.status === 'activating' ? 'var(--accent-amber)' : 'var(--text-muted)' }}>
-                    {a.status === 'active' && <><span className="pulse-dot" /> Online</>}
-                    {a.status === 'activating' && <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-amber)', boxShadow: '0 0 6px var(--accent-amber)' }} /> Activating</>}
-                    {a.status === 'planned' && <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-muted)' }} /> Planned</>}
-                  </div>
-                  {(() => {
-                    const hb = heartbeats[a.id] || a.lastActive;
-                    if (hb) return (
-                      <div style={{ marginTop: 4, fontSize: 12, color: idleColor(hb), fontFamily: 'var(--font-body)', letterSpacing: '0.02em' }}>
-                        idle: {formatIdleTime(hb)}
-                      </div>
-                    );
-                    if (a.status !== 'planned') return (
-                      <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-body)', letterSpacing: '0.02em' }}>
-                        idle: never used
-                      </div>
-                    );
-                    return null;
-                  })()}
-                </div>
-              </Link>
+              <AgentCard key={a.id} agent={a} heartbeat={heartbeats[a.id]} />
             ))}
           </div>
         </div>

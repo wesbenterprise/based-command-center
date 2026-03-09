@@ -217,3 +217,153 @@ h1, h2, h3, h4, h5 {
     padding-top: 56px;
   }
 }
+
+/* ─── Ops Pulse Animations ──────────────────────────────── */
+
+/* Ticker scroll */
+@keyframes tickerScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-track {
+  display: flex;
+  gap: 0;
+  animation: tickerScroll 30s linear infinite;
+  white-space: nowrap;
+}
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+/* Pulse rings for agent heatmap */
+@keyframes pulseRing {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 0.3; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.pulse-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  animation: pulseRing 2s ease-out infinite;
+  pointer-events: none;
+}
+.pulse-ring-2 {
+  animation-delay: 0.7s;
+}
+
+/* Error pulse (red) */
+@keyframes errorPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6); }
+  50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+}
+.error-pulse {
+  animation: errorPulse 1.2s ease infinite;
+}
+
+/* Task flow pipeline agent bubbles */
+@keyframes flowBubble {
+  0% { transform: translateX(0); opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateX(calc(100% + 40px)); opacity: 0; }
+}
+
+/* Sparkline fade in */
+@keyframes sparkFadeIn {
+  from { opacity: 0; transform: scaleX(0.8); }
+  to { opacity: 1; transform: scaleX(1); }
+}
+.sparkline-wrap {
+  animation: sparkFadeIn 0.6s ease forwards;
+}
+
+/* Health status pulse */
+@keyframes healthPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.health-dot-online {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 6px var(--accent-green);
+  display: inline-block;
+  animation: pulse-green 2.5s ease-in-out infinite;
+}
+.health-dot-degraded {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent-amber);
+  box-shadow: 0 0 6px var(--accent-amber);
+  display: inline-block;
+  animation: healthPulse 1.5s ease-in-out infinite;
+}
+.health-dot-offline {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent-red);
+  box-shadow: 0 0 6px var(--accent-red);
+  display: inline-block;
+}
+
+/* Chat message bubbles */
+@keyframes msgSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.chat-msg {
+  animation: msgSlideIn 0.25s ease forwards;
+}
+
+/* Agent card hover glow */
+.agent-card-enhanced {
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+.agent-card-enhanced:hover {
+  border-color: rgba(0,255,255,0.5) !important;
+  box-shadow: 0 0 24px rgba(0,255,255,0.1) !important;
+  transform: translateY(-2px);
+}
+
+/* Model badge colors */
+.model-badge {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-family: var(--font-heading);
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.model-opus { background: rgba(168,85,247,0.2); color: #c084fc; border: 1px solid rgba(168,85,247,0.4); }
+.model-sonnet { background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.4); }
+.model-flash { background: rgba(234,179,8,0.2); color: #facc15; border: 1px solid rgba(234,179,8,0.4); }
+.model-gpt { background: rgba(34,197,94,0.2); color: #4ade80; border: 1px solid rgba(34,197,94,0.4); }
+.model-gemini { background: rgba(14,165,233,0.2); color: #38bdf8; border: 1px solid rgba(14,165,233,0.4); }
+.model-default { background: rgba(148,163,184,0.2); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
+
+/* Approvals queue */
+@keyframes approvalGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+  50% { box-shadow: 0 0 16px 2px rgba(239,68,68,0.15); }
+}
+.approval-urgent {
+  animation: approvalGlow 2s ease infinite;
+}
+
+/* Empty state float */
+@keyframes emptyFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.empty-float {
+  animation: emptyFloat 3s ease-in-out infinite;
+}
+
+/* Skills card */
+.skill-card {
+  transition: all 0.2s ease;
+}
+.skill-card:hover {
+  border-color: rgba(255,0,255,0.5) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(255,0,255,0.1) !important;
+}
