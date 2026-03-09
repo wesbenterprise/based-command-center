@@ -335,7 +335,7 @@ function TaskFlowPipeline({ flows }: { flows: TaskFlow[] }) {
   );
 }
 
-function PulseGraphs({ heartbeats, liveSessions }: { heartbeats: Record<string, string>; liveSessions?: LiveSession[] }) {
+function PulseGraphs({ heartbeats, liveSessions, activityData }: { heartbeats: Record<string, string>; liveSessions?: LiveSession[]; activityData?: Record<string, number[]> }) {
   const activeAgents = agents.filter(a => a.status !== 'planned').slice(0, 8);
   return (
     <div>
@@ -346,7 +346,7 @@ function PulseGraphs({ heartbeats, liveSessions }: { heartbeats: Record<string, 
         {activeAgents.map(agent => {
           const status = getAgentRingStatus(agent, heartbeats, liveSessions);
           const color = ringColors[status];
-          const points = generateSparkline(agent);
+          const points = activityData?.[agent.id] || generateSparkline(agent);
           const liveS = liveSessions?.find(s => s.agentId === agent.id);
           const lastActive = liveS?.lastActiveMs ? new Date(liveS.lastActiveMs).toISOString() : heartbeats[agent.id] || agent.lastActive;
           return (
@@ -417,10 +417,26 @@ function FleetStatusBar({ heartbeats, liveSessions }: { heartbeats: Record<strin
 }
 
 // ─── Main OpsPulse Component ─────────────────────────────────
+function useActivityData() {
+  const [activity, setActivity] = useState<Record<string, number[]>>({});
+  useEffect(() => {
+    const fetchActivity = () => {
+      fetch('/api/gateway/activity')
+        .then(r => r.json())
+        .then(data => { if (!data.error) setActivity(data); })
+        .catch(() => {});
+    };
+    fetchActivity();
+    const interval = setInterval(fetchActivity, 30000);
+    return () => clearInterval(interval);
+  }, []);
+  return activity;
+}
+
 export default function OpsPulse({ heartbeats, liveSessions }: { heartbeats: Record<string, string>; liveSessions?: LiveSession[] }) {
   const [tickerEvents] = useState<TickerEvent[]>(buildTickerEvents);
   const [taskFlows] = useState<TaskFlow[]>(buildTaskFlow);
-  // TODO: replace with gateway API call to GET /api/sessions?kind=main&messageLimit=3
+  const activityData = useActivityData();
 
   return (
     <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
@@ -458,7 +474,7 @@ export default function OpsPulse({ heartbeats, liveSessions }: { heartbeats: Rec
             <TaskFlowPipeline flows={taskFlows} />
           </div>
           {/* Right col: Pulse Graphs */}
-          <PulseGraphs heartbeats={heartbeats} liveSessions={liveSessions} />
+          <PulseGraphs heartbeats={heartbeats} liveSessions={liveSessions} activityData={activityData} />
         </div>
       </div>
     </div>
