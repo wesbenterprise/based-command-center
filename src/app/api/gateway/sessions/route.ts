@@ -34,7 +34,8 @@ export async function GET() {
         }
 
         const agoMin = latestMs > 0 ? Math.floor((now - latestMs) / 60000) : -1;
-        const status = agoMin >= 0 && agoMin < 5 ? 'live' 
+        const agoSec = latestMs > 0 ? Math.floor((now - latestMs) / 1000) : -1;
+        const status = agoSec >= 0 && agoSec < 20 ? 'live' 
           : agoMin < 60 ? 'recent' 
           : agoMin < 1440 ? 'idle' 
           : 'dormant';
