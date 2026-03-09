@@ -23,8 +23,25 @@ interface TaskFlow {
 }
 
 // ─── Helpers ────────────────────────────────────────────────
-function getAgentRingStatus(agent: Agent, heartbeats: Record<string, string>): 'active' | 'recent' | 'dormant' | 'error' | 'planned' {
+interface LiveSession {
+  agentId: string;
+  status: 'live' | 'recent' | 'idle' | 'dormant';
+  lastActiveMs: number;
+  lastActiveMinAgo: number;
+  model: string;
+  channel: string;
+}
+
+function getAgentRingStatus(agent: Agent, heartbeats: Record<string, string>, liveSessions?: LiveSession[]): 'active' | 'recent' | 'dormant' | 'error' | 'planned' {
   if (agent.status === 'planned') return 'planned';
+  // Prefer live session data
+  const live = liveSessions?.find(s => s.agentId === agent.id);
+  if (live) {
+    if (live.status === 'live') return 'active';
+    if (live.status === 'recent') return 'recent';
+    if (live.status === 'idle') return 'dormant';
+    return 'dormant';
+  }
   const lastActive = heartbeats[agent.id] || agent.lastActive;
   if (!lastActive) return 'dormant';
   const diff = Date.now() - new Date(lastActive).getTime();
@@ -177,7 +194,7 @@ function LiveTicker({ events }: { events: TickerEvent[] }) {
   );
 }
 
-function AgentHeatmap({ heartbeats }: { heartbeats: Record<string, string> }) {
+function AgentHeatmap({ heartbeats, liveSessions }: { heartbeats: Record<string, string>; liveSessions?: LiveSession[] }) {
   const activeAgents = agents.filter(a => a.status !== 'planned');
   return (
     <div>
@@ -186,7 +203,7 @@ function AgentHeatmap({ heartbeats }: { heartbeats: Record<string, string> }) {
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
         {activeAgents.map(agent => {
-          const status = getAgentRingStatus(agent, heartbeats);
+          const status = getAgentRingStatus(agent, heartbeats, liveSessions);
           const color = ringColors[status];
           const isActive = status === 'active';
           const isError = status === 'error';
@@ -318,7 +335,7 @@ function TaskFlowPipeline({ flows }: { flows: TaskFlow[] }) {
   );
 }
 
-function PulseGraphs({ heartbeats }: { heartbeats: Record<string, string> }) {
+function PulseGraphs({ heartbeats, liveSessions }: { heartbeats: Record<string, string>; liveSessions?: LiveSession[] }) {
   const activeAgents = agents.filter(a => a.status !== 'planned').slice(0, 8);
   return (
     <div>
@@ -327,10 +344,11 @@ function PulseGraphs({ heartbeats }: { heartbeats: Record<string, string> }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
         {activeAgents.map(agent => {
-          const status = getAgentRingStatus(agent, heartbeats);
+          const status = getAgentRingStatus(agent, heartbeats, liveSessions);
           const color = ringColors[status];
           const points = generateSparkline(agent);
-          const lastActive = heartbeats[agent.id] || agent.lastActive;
+          const liveS = liveSessions?.find(s => s.agentId === agent.id);
+          const lastActive = liveS?.lastActiveMs ? new Date(liveS.lastActiveMs).toISOString() : heartbeats[agent.id] || agent.lastActive;
           return (
             <Link key={agent.id} href={`/agent/${agent.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
               <div style={{
@@ -362,8 +380,8 @@ function PulseGraphs({ heartbeats }: { heartbeats: Record<string, string> }) {
 }
 
 // ─── Fleet Status Bar ──────────────────────────────────────
-function FleetStatusBar({ heartbeats }: { heartbeats: Record<string, string> }) {
-  const statuses = agents.map(a => getAgentRingStatus(a, heartbeats));
+function FleetStatusBar({ heartbeats, liveSessions }: { heartbeats: Record<string, string>; liveSessions?: LiveSession[] }) {
+  const statuses = agents.map(a => getAgentRingStatus(a, heartbeats, liveSessions));
   const active = statuses.filter(s => s === 'active').length;
   const recent = statuses.filter(s => s === 'recent').length;
   const dormant = statuses.filter(s => s === 'dormant').length;
@@ -399,7 +417,7 @@ function FleetStatusBar({ heartbeats }: { heartbeats: Record<string, string> }) 
 }
 
 // ─── Main OpsPulse Component ─────────────────────────────────
-export default function OpsPulse({ heartbeats }: { heartbeats: Record<string, string> }) {
+export default function OpsPulse({ heartbeats, liveSessions }: { heartbeats: Record<string, string>; liveSessions?: LiveSession[] }) {
   const [tickerEvents] = useState<TickerEvent[]>(buildTickerEvents);
   const [taskFlows] = useState<TaskFlow[]>(buildTaskFlow);
   // TODO: replace with gateway API call to GET /api/sessions?kind=main&messageLimit=3
@@ -431,16 +449,16 @@ export default function OpsPulse({ heartbeats }: { heartbeats: Record<string, st
 
       {/* Main Content */}
       <div style={{ padding: '20px' }}>
-        <FleetStatusBar heartbeats={heartbeats} />
+        <FleetStatusBar heartbeats={heartbeats} liveSessions={liveSessions} />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
           {/* Left col: Heatmap + Task Flow */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <AgentHeatmap heartbeats={heartbeats} />
+            <AgentHeatmap heartbeats={heartbeats} liveSessions={liveSessions} />
             <TaskFlowPipeline flows={taskFlows} />
           </div>
           {/* Right col: Pulse Graphs */}
-          <PulseGraphs heartbeats={heartbeats} />
+          <PulseGraphs heartbeats={heartbeats} liveSessions={liveSessions} />
         </div>
       </div>
     </div>

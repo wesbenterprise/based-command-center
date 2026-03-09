@@ -82,6 +82,32 @@ function useAgentHeartbeats() {
   return heartbeats;
 }
 
+interface LiveSession {
+  agentId: string;
+  status: 'live' | 'recent' | 'idle' | 'dormant';
+  sessionCount: number;
+  lastActiveMs: number;
+  lastActiveMinAgo: number;
+  model: string;
+  channel: string;
+}
+
+function useLiveSessions() {
+  const [sessions, setSessions] = useState<LiveSession[]>([]);
+  useEffect(() => {
+    const fetchSessions = () => {
+      fetch('/api/gateway/sessions')
+        .then(r => r.json())
+        .then(data => { if (Array.isArray(data)) setSessions(data); })
+        .catch(() => {});
+    };
+    fetchSessions();
+    const interval = setInterval(fetchSessions, 15000); // refresh every 15s
+    return () => clearInterval(interval);
+  }, []);
+  return sessions;
+}
+
 function useSupabaseTasks() {
   const [tasks, setTasks] = useState<Task[]>(fallbackTasks);
   useEffect(() => {
@@ -157,18 +183,31 @@ function StatCard({ label, value, color, href }: { label: string; value: string;
 }
 
 // ─── Enhanced Agent Card ──────────────────────────────────────
-function AgentCard({ agent, heartbeat }: { agent: typeof agents[0]; heartbeat?: string }) {
-  const lastActive = heartbeat || agent.lastActive;
+function AgentCard({ agent, heartbeat, liveSession }: { agent: typeof agents[0]; heartbeat?: string; liveSession?: LiveSession }) {
+  // Use live session data if available, fallback to heartbeat/static
+  const lastActive = liveSession?.lastActiveMs
+    ? new Date(liveSession.lastActiveMs).toISOString()
+    : heartbeat || agent.lastActive;
   const color = idleColor(lastActive);
 
-  const statusColor = agent.status === 'active'
+  const liveStatus = liveSession?.status;
+  const statusColor = liveStatus === 'live'
+    ? '#34D399'
+    : liveStatus === 'recent'
+    ? 'var(--accent-amber)'
+    : agent.status === 'active'
     ? 'var(--accent-green)'
     : agent.status === 'activating'
     ? 'var(--accent-amber)'
     : 'var(--text-muted)';
+  
+  const statusLabel = liveStatus === 'live' ? 'Online'
+    : liveStatus === 'recent' ? 'Recent'
+    : liveStatus === 'idle' ? 'Idle'
+    : agent.status === 'active' ? 'Online' : agent.status;
 
   return (
-    <Link href={`/agent/${agent.id}`} style={{ textDecoration: 'none', color: 'inherit', flex: '0 0 auto' }}>
+    <div onClick={() => window.location.href = `/agent/${agent.id}`} style={{ textDecoration: 'none', color: 'inherit', flex: '0 0 auto', cursor: 'pointer' }}>
       <div className="panel agent-card-enhanced" style={{
         minWidth: 170,
         maxWidth: 200,
@@ -217,7 +256,7 @@ function AgentCard({ agent, heartbeat }: { agent: typeof agents[0]; heartbeat?: 
             flexShrink: 0,
           }} />
           <span style={{ color: statusColor, fontFamily: 'var(--font-heading)', letterSpacing: '0.04em' }}>
-            {agent.status === 'active' ? 'Online' : agent.status === 'activating' ? 'Activating' : 'Planned'}
+            {statusLabel}
           </span>
         </div>
 
@@ -283,7 +322,7 @@ function AgentCard({ agent, heartbeat }: { agent: typeof agents[0]; heartbeat?: 
           </Link>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -314,6 +353,7 @@ export default function Home() {
   const { tasks } = useSupabaseTasks();
   const stats = useStats();
   const heartbeats = useAgentHeartbeats();
+  const liveSessions = useLiveSessions();
 
   return (
     <main style={{ padding: '24px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
@@ -329,7 +369,7 @@ export default function Home() {
         </div>
 
         {/* ─── OPS PULSE HERO ─── */}
-        <OpsPulse heartbeats={heartbeats} />
+        <OpsPulse heartbeats={heartbeats} liveSessions={liveSessions} />
 
         {/* ─── EXEC APPROVALS ─── */}
         <ExecApprovals />
@@ -344,7 +384,7 @@ export default function Home() {
           </div>
           <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
             {agents.map(a => (
-              <AgentCard key={a.id} agent={a} heartbeat={heartbeats[a.id]} />
+              <AgentCard key={a.id} agent={a} heartbeat={heartbeats[a.id]} liveSession={liveSessions.find(s => s.agentId === a.id)} />
             ))}
           </div>
         </div>
