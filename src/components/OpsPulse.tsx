@@ -97,15 +97,17 @@ function generateSparkline(agent: Agent): number[] {
 }
 
 function Sparkline({ points, color }: { points: number[]; color: string }) {
-  const w = 80, h = 28;
+  const h = 28;
   const min = Math.min(...points), max = Math.max(...points);
   const range = max - min || 1;
-  const xs = points.map((_, i) => (i / (points.length - 1)) * w);
+  // Use viewBox so the sparkline stretches to fill the full container width
+  const vw = 100;
+  const xs = points.map((_, i) => (i / (points.length - 1)) * vw);
   const ys = points.map(p => h - ((p - min) / range) * (h - 4) - 2);
   const d = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
-  const fillD = `${d} L${w},${h} L0,${h} Z`;
+  const fillD = `${d} L${vw},${h} L0,${h} Z`;
   return (
-    <svg width={w} height={h} className="sparkline-wrap" style={{ display: 'block' }}>
+    <svg viewBox={`0 0 ${vw} ${h}`} preserveAspectRatio="none" className="sparkline-wrap" style={{ display: 'block', width: '100%', height: h }}>
       <defs>
         <linearGradient id={`sg-${color.replace(/[^a-z]/gi, '')}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.4" />
@@ -113,12 +115,12 @@ function Sparkline({ points, color }: { points: number[]; color: string }) {
         </linearGradient>
       </defs>
       <path d={fillD} fill={`url(#sg-${color.replace(/[^a-z]/gi, '')})`} />
-      <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
 
-// ─── Mock ticker events derived from agent activity ──────────
+// ─── Ticker events from gateway sessions (live) with static fallback ──
 function buildTickerEvents(): TickerEvent[] {
   const events: TickerEvent[] = [];
   agents.forEach(a => {
@@ -134,6 +136,26 @@ function buildTickerEvents(): TickerEvent[] {
   });
   events.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
   return events.slice(0, 10);
+}
+
+function useTickerEvents(): TickerEvent[] {
+  const [events, setEvents] = useState<TickerEvent[]>(buildTickerEvents);
+  useEffect(() => {
+    const fetchTicker = () => {
+      fetch('/api/gateway/ticker')
+        .then(r => r.json())
+        .then(data => {
+          if (data.events && data.events.length > 0) {
+            setEvents(data.events);
+          }
+        })
+        .catch(() => {});
+    };
+    fetchTicker();
+    const interval = setInterval(fetchTicker, 15000);
+    return () => clearInterval(interval);
+  }, []);
+  return events;
 }
 
 // ─── Mock task flow data ──────────────────────────────────────
@@ -434,7 +456,7 @@ function useActivityData() {
 }
 
 export default function OpsPulse({ heartbeats, liveSessions }: { heartbeats: Record<string, string>; liveSessions?: LiveSession[] }) {
-  const [tickerEvents] = useState<TickerEvent[]>(buildTickerEvents);
+  const tickerEvents = useTickerEvents();
   const [taskFlows] = useState<TaskFlow[]>(buildTaskFlow);
   const activityData = useActivityData();
 
