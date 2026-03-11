@@ -1,148 +1,53 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const MEMORY_PATH = '/Users/wrbopenclaw/.openclaw/workspace-ace/MEMORY.md';
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_KEY!,
+);
 
 export interface Task {
   id: string;
-  priority: 'critical' | 'today' | 'waiting' | 'done';
   title: string;
   description: string;
+  priority: 'critical' | 'today' | 'waiting' | 'done';
   status: 'open' | 'blocked' | 'waiting' | 'done';
-  blockedBy: 'wesley' | 'agent' | null;
+  blocked_by: 'wesley' | 'agent' | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  sort_order: number;
 }
 
-function parseBlockedBy(title: string, description: string): 'wesley' | 'agent' | null {
-  const full = (title + ' ' + description).toLowerCase();
-  if (
-    full.includes('waiting on wesley') ||
-    full.includes('needs his edits') ||
-    full.includes('needs your') ||
-    full.includes('waiting on you') ||
-    /wesley to /.test(full)
-  ) {
-    return 'wesley';
-  }
-  if (
-    full.includes('agent') ||
-    full.includes('dezayas') ||
-    full.includes('rybo') ||
-    full.includes('astra')
-  ) {
-    return 'agent';
-  }
-  return null;
-}
-
-function parseTaskLine(line: string): Task | null {
-  // Match: - <emoji> **title** — description  OR  - <emoji> **title** - description
-  const match = line.match(/^-\s+(🔴|🟡|🟢|⏳)\s+\*\*(.+?)\*\*(?:\s+[—\-]\s+(.+))?$/);
-  if (!match) return null;
-
-  const [, emoji, title, description = ''] = match;
-
-  let priority: Task['priority'];
-  let status: Task['status'];
-
-  switch (emoji) {
-    case '🔴':
-      priority = 'critical';
-      status = 'open';
-      break;
-    case '🟡':
-      priority = 'today';
-      status = 'open';
-      break;
-    case '🟢':
-      priority = 'done';
-      status = 'done';
-      break;
-    case '⏳':
-      priority = 'waiting';
-      status = 'waiting';
-      break;
-    default:
-      return null;
-  }
-
-  const blockedBy = parseBlockedBy(title, description);
-
-  // Elevate status to 'waiting' if blockedBy is set and status is open
-  if (blockedBy === 'wesley' && status === 'open') {
-    status = 'waiting';
-  }
-
-  const id = title
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .slice(0, 60);
-
-  return { id, priority, title, description: description.trim(), status, blockedBy };
-}
-
-function parseCompletedLine(line: string): Task | null {
-  // Match: - ✅ **title** — description (date)
-  const match = line.match(/^-\s+✅\s+\*\*(.+?)\*\*(?:\s+[—\-]\s+(.+))?$/);
-  if (!match) return null;
-  const [, title, description = ''] = match;
-  const id = title
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .slice(0, 60);
-  return { id, priority: 'done', title, description: description.trim(), status: 'done', blockedBy: null };
-}
-
-function readTasks(): { tasks: Task[]; raw: string; sectionStart: number; sectionEnd: number } {
-  const raw = fs.readFileSync(MEMORY_PATH, 'utf-8');
-  const lines = raw.split('\n');
-
-  let sectionStart = -1;
-  let sectionEnd = lines.length;
-  let completedStart = -1;
-  let completedEnd = lines.length;
-  const tasks: Task[] = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].startsWith('## Open Action Items')) {
-      sectionStart = i + 1;
-    } else if (lines[i].startsWith('## Recently Completed')) {
-      if (sectionStart !== -1 && sectionEnd === lines.length) sectionEnd = i;
-      completedStart = i + 1;
-    } else if (sectionStart !== -1 && sectionEnd === lines.length && lines[i].startsWith('## ')) {
-      sectionEnd = i;
-    } else if (completedStart !== -1 && completedEnd === lines.length && lines[i].startsWith('## ') && !lines[i].startsWith('## Recently Completed')) {
-      completedEnd = i;
-    }
-  }
-
-  // Parse open action items
-  for (let i = sectionStart; i >= 0 && i < sectionEnd; i++) {
-    if (lines[i].startsWith('- ')) {
-      const task = parseTaskLine(lines[i]);
-      if (task) tasks.push(task);
-    }
-  }
-
-  // Parse recently completed
-  for (let i = completedStart; i >= 0 && i < completedEnd; i++) {
-    if (lines[i].startsWith('- ')) {
-      const task = parseCompletedLine(lines[i]);
-      if (task) tasks.push(task);
-    }
-  }
-
-  return { tasks, raw, sectionStart, sectionEnd };
-}
-
+// GET: fetch all tasks
 export async function GET() {
   try {
-    const { tasks } = readTasks();
+    const { data, error } = await supabase
+      .from('agenda_tasks')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Map snake_case DB fields to the format the frontend expects
+    const tasks = (data || []).map((t: any) => ({
+      id: t.id,
+      priority: t.priority,
+      title: t.title,
+      description: t.description || '',
+      status: t.status,
+      blockedBy: t.blocked_by || null,
+      completedAt: t.completed_at,
+      createdAt: t.created_at,
+      updatedAt: t.updated_at,
+      sortOrder: t.sort_order,
+    }));
+
     return NextResponse.json({
       tasks,
       updatedAt: new Date().toISOString(),
@@ -152,6 +57,7 @@ export async function GET() {
   }
 }
 
+// POST: add, remove, update, or complete tasks
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -161,74 +67,95 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'action required' }, { status: 400 });
     }
 
-    const raw = fs.readFileSync(MEMORY_PATH, 'utf-8');
-    const lines = raw.split('\n');
-
-    let sectionStart = -1;
-    let sectionEnd = lines.length;
-
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].startsWith('## Open Action Items')) {
-        sectionStart = i + 1;
-      } else if (sectionStart !== -1 && lines[i].startsWith('## ')) {
-        sectionEnd = i;
-        break;
-      }
-    }
-
-    if (sectionStart === -1) {
-      return NextResponse.json({ error: 'Could not find Open Action Items section' }, { status: 500 });
-    }
-
-    const emojiMap: Record<string, string> = {
-      critical: '🔴',
-      today: '🟡',
-      done: '🟢',
-      waiting: '⏳',
-    };
-
     if (action === 'add') {
-      const { priority = 'today', title, description = '' } = body;
+      const { priority = 'today', title, description = '', blocked_by = null, sort_order = 0 } = body;
       if (!title) return NextResponse.json({ error: 'title required' }, { status: 400 });
-      const emoji = emojiMap[priority] || '🟡';
-      const newLine = description
-        ? `- ${emoji} **${title}** — ${description}`
-        : `- ${emoji} **${title}**`;
-      // Insert after the section header, before the first blank line or next item
-      lines.splice(sectionStart, 0, newLine);
-    } else if (action === 'remove') {
-      const { id, title } = body;
-      for (let i = sectionStart; i < sectionEnd; i++) {
-        if (!lines[i].startsWith('- ')) continue;
-        const task = parseTaskLine(lines[i]);
-        if (task && (task.id === id || task.title === title)) {
-          lines.splice(i, 1);
-          break;
-        }
-      }
-    } else if (action === 'update') {
-      const { id, title: searchTitle, priority, description, status } = body;
-      for (let i = sectionStart; i < sectionEnd; i++) {
-        if (!lines[i].startsWith('- ')) continue;
-        const task = parseTaskLine(lines[i]);
-        if (task && (task.id === id || task.title === searchTitle)) {
-          const newPriority = priority || task.priority;
-          const newDesc = description !== undefined ? description : task.description;
-          const newTitle = body.newTitle || task.title;
-          const emoji = emojiMap[newPriority] || emojiMap[task.priority] || '🟡';
-          lines[i] = newDesc
-            ? `- ${emoji} **${newTitle}** — ${newDesc}`
-            : `- ${emoji} **${newTitle}**`;
-          break;
-        }
-      }
-    } else {
-      return NextResponse.json({ error: 'unknown action' }, { status: 400 });
+
+      const status = blocked_by === 'wesley' ? 'waiting' : 'open';
+      const { data, error } = await supabase
+        .from('agenda_tasks')
+        .insert({ title, description, priority, status, blocked_by, sort_order })
+        .select()
+        .single();
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, task: data });
     }
 
-    fs.writeFileSync(MEMORY_PATH, lines.join('\n'), 'utf-8');
-    const { tasks } = readTasks();
-    return NextResponse.json({ ok: true, tasks });
+    if (action === 'remove') {
+      const { id } = body;
+      if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+      const { error } = await supabase.from('agenda_tasks').delete().eq('id', id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === 'update') {
+      const { id } = body;
+      if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+      const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+      if (body.title !== undefined) updates.title = body.title;
+      if (body.description !== undefined) updates.description = body.description;
+      if (body.priority !== undefined) updates.priority = body.priority;
+      if (body.status !== undefined) updates.status = body.status;
+      if (body.blocked_by !== undefined) updates.blocked_by = body.blocked_by;
+      if (body.sort_order !== undefined) updates.sort_order = body.sort_order;
+
+      const { data, error } = await supabase
+        .from('agenda_tasks')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, task: data });
+    }
+
+    if (action === 'complete') {
+      const { id } = body;
+      if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+      const { data, error } = await supabase
+        .from('agenda_tasks')
+        .update({
+          priority: 'done',
+          status: 'done',
+          blocked_by: null,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, task: data });
+    }
+
+    if (action === 'reopen') {
+      const { id, priority = 'today' } = body;
+      if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+      const { data, error } = await supabase
+        .from('agenda_tasks')
+        .update({
+          priority,
+          status: 'open',
+          completed_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, task: data });
+    }
+
+    return NextResponse.json({ error: 'unknown action' }, { status: 400 });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
