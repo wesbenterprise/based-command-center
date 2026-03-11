@@ -7,12 +7,13 @@ import { usePathname } from 'next/navigation';
 
 const navItems = [
   { id: 'hq', label: 'HQ', icon: '🏠', href: '/' },
+  { id: 'tasks', label: 'TASKS', icon: '📋', href: '/tasks' },
   { id: 'chat', label: 'CHAT', icon: '💬', href: '/chat' },
   { id: 'skills', label: 'SKILLS', icon: '🧠', href: '/skills' },
   { id: 'cron', label: 'CRON', icon: '⚡', href: '/cron' },
   { id: 'intel', label: 'INTEL', icon: '📊', href: '/intel' },
   { id: 'output', label: 'OUTPUT', icon: '📦', href: '/output' },
-  { id: 'surveys', label: 'SURVEYS', icon: '📋', href: '/surveys' },
+  { id: 'surveys', label: 'SURVEYS', icon: '📝', href: '/surveys' },
   { id: 'email', label: 'EMAIL', icon: '📧', href: '/email' },
   { id: 'arena', label: 'ARENA', icon: '⚔️', href: '/arena' },
   { id: 'apps', label: 'APPS', icon: '🧩', href: '/apps' },
