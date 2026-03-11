@@ -12,6 +12,7 @@ import NeedsAttention from "../components/alerts/NeedsAttention";
 import { Task, tasks as fallbackTasks } from "../data/tasks";
 import OpsPulse from "../components/OpsPulse";
 import ExecApprovals from "../components/ExecApprovals";
+import AAPLWidget from "../components/AAPLWidget";
 
 // ─── Idle Time Helpers ──────────────────────────────────────
 function formatIdleTime(lastActive?: string): string | null {
@@ -359,6 +360,9 @@ export default function Home() {
     <main style={{ padding: '24px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <MorningBrief />
+
+        {/* AAPL Ticker */}
+        <AAPLWidget />
 
         {/* Stat Row */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
