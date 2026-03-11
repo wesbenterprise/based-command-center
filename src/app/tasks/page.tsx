@@ -472,7 +472,7 @@ export default function TasksPage() {
             color: 'var(--accent-magenta)',
             textShadow: '0 0 20px rgba(255,0,255,0.5), 0 0 40px rgba(255,0,255,0.2)',
           }}>
-            TASKS
+            AGENDA
           </h1>
           {!loading && (
             <span style={{
@@ -515,7 +515,7 @@ export default function TasksPage() {
           letterSpacing: '0.1em',
           fontSize: 14,
         }}>
-          LOADING TASKS...
+          LOADING AGENDA...
         </div>
       ) : (
         <div style={{

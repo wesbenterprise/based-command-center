@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 
 const navItems = [
   { id: 'hq', label: 'HQ', icon: '🏠', href: '/' },
-  { id: 'tasks', label: 'TASKS', icon: '📋', href: '/tasks' },
+  { id: 'agenda', label: 'AGENDA', icon: '📋', href: '/tasks' },
   { id: 'chat', label: 'CHAT', icon: '💬', href: '/chat' },
   { id: 'skills', label: 'SKILLS', icon: '🧠', href: '/skills' },
   { id: 'cron', label: 'CRON', icon: '⚡', href: '/cron' },
