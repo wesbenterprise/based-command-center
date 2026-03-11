@@ -141,6 +141,33 @@ export default function AAPLWidget() {
           vs. Basis ${COST_BASIS.toFixed(2)}
         </div>
       </div>
+
+      {/* Divider */}
+      <div
+        style={{
+          width: 1,
+          height: 36,
+          background: "var(--border-subtle)",
+          flexShrink: 0,
+        }}
+      />
+
+      {/* Earnings Note */}
+      <div style={{ textAlign: "center", minWidth: 100 }}>
+        <div
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontSize: 13,
+            color: "var(--accent-amber)",
+            letterSpacing: "0.04em",
+          }}
+        >
+          📅 Apr 30
+        </div>
+        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          Earnings Release
+        </div>
+      </div>
     </div>
   );
 }
