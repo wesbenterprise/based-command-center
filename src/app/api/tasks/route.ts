@@ -85,22 +85,54 @@ function parseTaskLine(line: string): Task | null {
   return { id, priority, title, description: description.trim(), status, blockedBy };
 }
 
+function parseCompletedLine(line: string): Task | null {
+  // Match: - ✅ **title** — description (date)
+  const match = line.match(/^-\s+✅\s+\*\*(.+?)\*\*(?:\s+[—\-]\s+(.+))?$/);
+  if (!match) return null;
+  const [, title, description = ''] = match;
+  const id = title
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .slice(0, 60);
+  return { id, priority: 'done', title, description: description.trim(), status: 'done', blockedBy: null };
+}
+
 function readTasks(): { tasks: Task[]; raw: string; sectionStart: number; sectionEnd: number } {
   const raw = fs.readFileSync(MEMORY_PATH, 'utf-8');
   const lines = raw.split('\n');
 
   let sectionStart = -1;
   let sectionEnd = lines.length;
+  let completedStart = -1;
+  let completedEnd = lines.length;
   const tasks: Task[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].startsWith('## Open Action Items')) {
       sectionStart = i + 1;
-    } else if (sectionStart !== -1 && lines[i].startsWith('## ')) {
+    } else if (lines[i].startsWith('## Recently Completed')) {
+      if (sectionStart !== -1 && sectionEnd === lines.length) sectionEnd = i;
+      completedStart = i + 1;
+    } else if (sectionStart !== -1 && sectionEnd === lines.length && lines[i].startsWith('## ')) {
       sectionEnd = i;
-      break;
-    } else if (sectionStart !== -1 && lines[i].startsWith('- ')) {
+    } else if (completedStart !== -1 && completedEnd === lines.length && lines[i].startsWith('## ') && !lines[i].startsWith('## Recently Completed')) {
+      completedEnd = i;
+    }
+  }
+
+  // Parse open action items
+  for (let i = sectionStart; i >= 0 && i < sectionEnd; i++) {
+    if (lines[i].startsWith('- ')) {
       const task = parseTaskLine(lines[i]);
+      if (task) tasks.push(task);
+    }
+  }
+
+  // Parse recently completed
+  for (let i = completedStart; i >= 0 && i < completedEnd; i++) {
+    if (lines[i].startsWith('- ')) {
+      const task = parseCompletedLine(lines[i]);
       if (task) tasks.push(task);
     }
   }
